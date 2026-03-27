@@ -22,12 +22,12 @@ Target: **net8.0** · Tests: **xUnit 2.5.3** · UI: **Spectre.Console 0.49.1**
 ```
 src/IntuneMonitor/
 ├── Authentication/   # CredentialFactory – client secret & certificate auth
-├── Commands/         # ExportCommand, ImportCommand, MonitorCommand
+├── Commands/         # ExportCommand, ImportCommand, MonitorCommand, AuditLogCommand
 ├── Comparison/       # PolicyComparer – deep JSON diff engine
 ├── Config/           # Strongly-typed configuration POCOs
-├── Graph/            # IntuneExporter, IntuneImporter – Graph API clients
-├── Models/           # IntuneItem, BackupDocument, ChangeReport, PolicyChange
-├── Reporting/        # HtmlReportGenerator, HtmlExportReportGenerator, HtmlTheme
+├── Graph/            # IntuneExporter, IntuneImporter, AuditLogFetcher – Graph API clients
+├── Models/           # IntuneItem, BackupDocument, ChangeReport, PolicyChange, AuditModels
+├── Reporting/        # HtmlReportGenerator, HtmlExportReportGenerator, HtmlAuditReportGenerator, HtmlTheme, ReportPath
 ├── Storage/          # IBackupStorage + LocalFile/Git implementations
 ├── UI/               # ConsoleUI (Spectre.Console helpers) + InteractiveMenu
 └── Program.cs        # Entry point – interactive menu (no args) or CLI routing (with args)
@@ -150,13 +150,14 @@ All Graph calls go through `HttpClient` to the **beta** endpoint (`https://graph
 
 ## CLI Commands
 
-Built with `System.CommandLine 2.0.0-beta4.22272.1`. Four commands:
+Built with `System.CommandLine 2.0.0-beta4.22272.1`. Five commands:
 
 | Command | Purpose |
 |---|---|
 | `export` | Download Intune policies to backup storage |
 | `import` | Restore policies from backup (supports `--dry-run`) |
 | `monitor` | Compare live state vs. backup, detect drift, generate reports |
+| `audit-log` | Fetch and summarize Intune audit log events (1–30 days) |
 | `list-types` | Display the 13 supported Intune content types |
 
 Global options (tenant, client, auth, backup path, verbosity) are defined in `Program.cs` and shared across commands.

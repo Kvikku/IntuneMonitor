@@ -26,6 +26,7 @@ Welcome to the IntuneMonitor documentation. These guides cover everything from f
 - [API Permissions](getting-started.md#required-api-permissions)
 - [Environment Variables](configuration.md#environment-variables)
 - [HTML Reports](monitoring.md#html-reports)
+- [Audit Logs](commands.md#audit-log)
 - [Adding a New Content Type](architecture.md#adding-a-new-content-type)
 
 ## For Contributors & AI Coding Agents

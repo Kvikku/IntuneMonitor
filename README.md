@@ -19,6 +19,7 @@
 | **HTML Reports** | Self-contained HTML dashboards for export summaries and change reports |
 | **Storage backends** | Local file system **or** Git repository (auto-commit + push) |
 | **Scheduling** | Run once (`--interval 0`) or loop on a configurable interval |
+| **Audit Logs** | Fetch and summarize Intune audit events with HTML/JSON reporting |
 | **Logging** | Structured logging via `Microsoft.Extensions.Logging` with configurable verbosity (`--verbosity`) |
 | **Configuration** | `appsettings.json`, environment variables, and/or CLI flags |
 ---
@@ -32,7 +33,7 @@ Works interactively, in CI/CD pipelines, Azure Automation runbooks, or as a sche
 
 ## Highlights
 
-- **One CLI, three commands** — `export`, `import`, `monitor` — plus `list-types` for discovery
+- **One CLI, four commands** — `export`, `import`, `monitor`, `audit-log` — plus `list-types` for discovery
 - **Interactive mode** — run with no arguments for a menu-driven UI with arrow-key navigation
 - **13 policy types** — Settings Catalog, Compliance, Device Config, Scripts, Autopilot, Driver/Feature/Quality Updates, Assignment Filters, and more
 - **Git-native backups** — every export becomes a versioned commit, auto-pushed to your remote
@@ -136,12 +137,14 @@ Full documentation is in the [`docs/`](docs/) folder:
 | `export` | Download all Intune policies to backup storage |
 | `import` | Restore policies from backup into the tenant |
 | `monitor` | Compare live state against backup, report drift |
+| `audit-log` | Review Intune audit logs and summarize changes |
 | `list-types` | Display all 13 supported content types |
 
 ```bash
 dotnet run -- export                                  # Export all policies
 dotnet run -- import --dry-run                        # Preview an import
 dotnet run -- monitor --interval 30 --changes-only    # Continuous drift detection
+dotnet run -- audit-log --days 7                      # Review last 7 days of audit logs
 dotnet run -- list-types                              # Show supported types
 dotnet run                                            # Interactive menu
 ```
@@ -225,18 +228,18 @@ dotnet test
 ```
 src/IntuneMonitor/
 ├── Authentication/     CredentialFactory (secret + certificate)
-├── Commands/           Export, Import, Monitor commands
+├── Commands/           Export, Import, Monitor, AuditLog commands
 ├── Comparison/         PolicyComparer — deep diff engine
 ├── Config/             Strongly-typed configuration POCOs
-├── Graph/              IntuneExporter & IntuneImporter (Graph API)
-├── Models/             IntuneItem, BackupDocument, ChangeReport
-├── Reporting/          HtmlReportGenerator, HtmlExportReportGenerator, HtmlTheme
+├── Graph/              IntuneExporter, IntuneImporter, AuditLogFetcher (Graph API)
+├── Models/             IntuneItem, BackupDocument, ChangeReport, AuditModels
+├── Reporting/          HtmlReportGenerator, HtmlExportReportGenerator, HtmlAuditReportGenerator, HtmlTheme
 ├── Storage/            IBackupStorage → LocalFileStorage, GitStorage
 ├── UI/                 ConsoleUI (Spectre.Console) + InteractiveMenu
 └── Program.cs          Entry point — CLI routing + interactive menu
 
 tests/IntuneMonitor.Tests/
-└── PolicyComparerTests.cs
+└── PolicyComparerTests.cs + additional test files
 
 docs/                   Full documentation
 ```

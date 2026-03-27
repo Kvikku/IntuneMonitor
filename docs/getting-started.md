@@ -18,6 +18,7 @@ Register an application in **Microsoft Entra ID** → **App registrations** and 
 | `DeviceManagementApps.Read.All` | Export & Monitor |
 | `DeviceManagementManagedDevices.Read.All` | Export & Monitor |
 | `DeviceManagementServiceConfig.Read.All` | Export & Monitor |
+| `DeviceManagementRBAC.Read.All` | Audit Log |
 
 > [!IMPORTANT]
 > After adding permissions, click **Grant admin consent** in the Azure Portal.

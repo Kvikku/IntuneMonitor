@@ -1,6 +1,6 @@
 # Commands
 
-IntuneMonitor provides four commands, each accessible via `dotnet run -- <command>` or through the [interactive menu](interactive-mode.md).
+IntuneMonitor provides five commands, each accessible via `dotnet run -- <command>` or through the [interactive menu](interactive-mode.md).
 
 ## Global Options
 
@@ -110,6 +110,31 @@ Displays all 13 supported content types in a formatted table.
 ```bash
 dotnet run -- list-types
 ```
+
+---
+
+## `audit-log`
+
+Fetches Intune audit log events from Microsoft Graph and summarizes changes over the last N days.
+
+```bash
+# Review last 7 days (default)
+dotnet run -- audit-log
+
+# Last 14 days with HTML report
+dotnet run -- audit-log --days 14 --html-report ./audit-report.html
+
+# Save a JSON report
+dotnet run -- audit-log --days 7 --json-report ./audit-report.json
+```
+
+### Options
+
+| Option | Description |
+|---|---|
+| `--days <n>` | Number of days to look back (1–30, default: 7) |
+| `--html-report <path>` | Write an HTML audit log report |
+| `--json-report <path>` | Write a JSON audit log report |
 
 ---
 

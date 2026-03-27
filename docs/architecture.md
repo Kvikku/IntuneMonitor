@@ -9,6 +9,7 @@ src/IntuneMonitor/
 ├── Authentication/     Credential creation (secret + certificate)
 │   └── CredentialFactory.cs
 ├── Commands/           Command implementations
+│   ├── AuditLogCommand.cs
 │   ├── ExportCommand.cs
 │   ├── ImportCommand.cs
 │   └── MonitorCommand.cs
@@ -17,15 +18,19 @@ src/IntuneMonitor/
 ├── Config/             Strongly-typed configuration POCOs
 │   └── AppConfiguration.cs
 ├── Graph/              Microsoft Graph API client layer
+│   ├── AuditLogFetcher.cs
 │   ├── IntuneExporter.cs
 │   └── IntuneImporter.cs
 ├── Models/             Data models
+│   ├── AuditModels.cs
 │   ├── BackupModels.cs
 │   └── IntuneContentTypes.cs
 ├── Reporting/          HTML report generators
-│   ├── HtmlReportGenerator.cs
+│   ├── HtmlAuditReportGenerator.cs
 │   ├── HtmlExportReportGenerator.cs
-│   └── HtmlTheme.cs
+│   ├── HtmlReportGenerator.cs
+│   ├── HtmlTheme.cs
+│   └── ReportPath.cs
 ├── Storage/            Backup storage backends
 │   ├── IBackupStorage.cs
 │   ├── BackupStorageFactory.cs

@@ -15,6 +15,7 @@ What would you like to do?
 > Export policies
   Import policies
   Monitor for changes
+  Review audit logs
   List content types
   Settings overview
   Exit
@@ -40,6 +41,13 @@ Use **↑/↓** to navigate and **Enter** to select.
 2. **Generate HTML change report?** — Toggle and set path
 3. **Run on a schedule?** — Choose "Yes" to set a polling interval, or "No" for a one-shot comparison
 4. If scheduled, press **Ctrl+C** to stop
+
+## Audit Log Workflow
+
+1. **How many days?** — Enter a number between 1 and 30 (default: 7)
+2. **Generate HTML audit log report?** — Toggle and optionally set a custom path
+3. **Generate JSON audit log report?** — Toggle and optionally set a custom path
+4. The command fetches events from Microsoft Graph and prints a summary to the console
 
 ## Settings Overview
 
