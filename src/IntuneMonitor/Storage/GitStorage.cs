@@ -2,6 +2,8 @@ using System.Diagnostics;
 using System.Text.Json;
 using IntuneMonitor.Config;
 using IntuneMonitor.Models;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace IntuneMonitor.Storage;
 
@@ -25,14 +27,16 @@ public class GitStorage : IBackupStorage
     private readonly BackupConfig _config;
     private readonly string _repoPath;
     private readonly string _backupPath;
+    private readonly ILogger<GitStorage> _logger;
 
-    public GitStorage(BackupConfig config)
+    public GitStorage(BackupConfig config, ILogger<GitStorage>? logger = null)
     {
         _config = config ?? throw new ArgumentNullException(nameof(config));
         _repoPath = config.Path;
         _backupPath = string.IsNullOrWhiteSpace(config.SubDirectory)
             ? config.Path
             : Path.Combine(config.Path, config.SubDirectory);
+        _logger = logger ?? NullLogger<GitStorage>.Instance;
     }
 
     public async Task SaveBackupAsync(
@@ -123,7 +127,7 @@ public class GitStorage : IBackupStorage
         var statusOutput = await RunGitCommandAsync("status --porcelain", cancellationToken);
         if (string.IsNullOrWhiteSpace(statusOutput))
         {
-            Console.WriteLine("Git: No changes to commit.");
+            _logger.LogInformation("Git: No changes to commit");
             return;
         }
 
@@ -136,7 +140,7 @@ public class GitStorage : IBackupStorage
         if (_config.AutoCommit && !string.IsNullOrWhiteSpace(_config.GitRemoteUrl))
         {
             await RunGitCommandAsync($"push origin {_config.GitBranch}", cancellationToken);
-            Console.WriteLine($"Git: Changes pushed to remote ({_config.GitBranch}).");
+            _logger.LogInformation("Git: Changes pushed to remote ({Branch})", _config.GitBranch);
         }
     }
 

@@ -4,6 +4,8 @@ using IntuneMonitor.Config;
 using IntuneMonitor.Graph;
 using IntuneMonitor.Models;
 using IntuneMonitor.Storage;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace IntuneMonitor.Commands;
 
@@ -13,10 +15,14 @@ namespace IntuneMonitor.Commands;
 public class ImportCommand
 {
     private readonly AppConfiguration _config;
+    private readonly ILogger<ImportCommand> _logger;
+    private readonly ILoggerFactory _loggerFactory;
 
-    public ImportCommand(AppConfiguration config)
+    public ImportCommand(AppConfiguration config, ILoggerFactory? loggerFactory = null)
     {
         _config = config ?? throw new ArgumentNullException(nameof(config));
+        _loggerFactory = loggerFactory ?? NullLoggerFactory.Instance;
+        _logger = _loggerFactory.CreateLogger<ImportCommand>();
     }
 
     /// <summary>
@@ -27,21 +33,21 @@ public class ImportCommand
         bool dryRun = false,
         CancellationToken cancellationToken = default)
     {
-        Console.WriteLine("=== Intune Import ===");
+        _logger.LogInformation("=== Intune Import ===");
 
         if (dryRun)
-            Console.WriteLine("[DRY RUN] No changes will be made to the tenant.");
+            _logger.LogInformation("[DRY RUN] No changes will be made to the tenant");
 
         // Authenticate
         TokenCredential credential;
         try
         {
             credential = CredentialFactory.Create(_config.Authentication);
-            Console.WriteLine($"Authentication configured (method: {_config.Authentication.Method})");
+            _logger.LogInformation("Authentication configured (method: {AuthMethod})", _config.Authentication.Method);
         }
         catch (Exception ex)
         {
-            Console.Error.WriteLine($"Authentication error: {ex.Message}");
+            _logger.LogError(ex, "Authentication error");
             return 0;
         }
 
@@ -52,11 +58,11 @@ public class ImportCommand
         IBackupStorage storage;
         try
         {
-            storage = BackupStorageFactory.Create(_config.Backup);
+            storage = BackupStorageFactory.Create(_config.Backup, _loggerFactory);
         }
         catch (Exception ex)
         {
-            Console.Error.WriteLine($"Storage error: {ex.Message}");
+            _logger.LogError(ex, "Storage error");
             return 0;
         }
 
@@ -71,23 +77,23 @@ public class ImportCommand
             var backup = await storage.LoadBackupAsync(contentType, cancellationToken);
             if (backup == null)
             {
-                Console.WriteLine($"No backup found for {contentType}, skipping.");
+                _logger.LogWarning("No backup found for {ContentType}, skipping", contentType);
                 continue;
             }
 
-            Console.WriteLine($"Importing {backup.Items.Count} {contentType} item(s)...");
+            _logger.LogInformation("Importing {ItemCount} {ContentType} item(s)...", backup.Items.Count, contentType);
 
             foreach (var item in backup.Items)
             {
                 if (item.PolicyData == null)
                 {
-                    Console.WriteLine($"  ⚠ Skipping '{item.Name}' – no policy data in backup.");
+                    _logger.LogWarning("Skipping '{ItemName}' – no policy data in backup", item.Name);
                     continue;
                 }
 
                 if (dryRun)
                 {
-                    Console.WriteLine($"  [DRY RUN] Would import: {item.Name}");
+                    _logger.LogInformation("[DRY RUN] Would import: {ItemName}", item.Name);
                     successCount++;
                     continue;
                 }
@@ -95,18 +101,18 @@ public class ImportCommand
                 try
                 {
                     var imported = await importer.ImportItemAsync(item, cancellationToken);
-                    Console.WriteLine($"  ✓ Imported: {imported}");
+                    _logger.LogInformation("Imported: {ImportedName}", imported);
                     successCount++;
                 }
                 catch (Exception ex)
                 {
-                    Console.Error.WriteLine($"  ✗ Failed to import '{item.Name}': {ex.Message}");
+                    _logger.LogError(ex, "Failed to import '{ItemName}'", item.Name);
                     errorCount++;
                 }
             }
         }
 
-        Console.WriteLine($"\nImport complete. {successCount} succeeded, {errorCount} failed.");
+        _logger.LogInformation("Import complete. {SuccessCount} succeeded, {ErrorCount} failed", successCount, errorCount);
         return successCount;
     }
 

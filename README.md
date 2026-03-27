@@ -10,6 +10,16 @@
 [![Microsoft Graph](https://img.shields.io/badge/Microsoft%20Graph-beta-0078D4?logo=microsoft&logoColor=white)](https://learn.microsoft.com/en-us/graph/overview)
 [![xUnit](https://img.shields.io/badge/tests-xUnit-green?logo=testinglibrary&logoColor=white)]()
 
+| Feature | Details |
+|---|---|
+| **Authentication** | Client secret **or** X.509 certificate (file or cert store thumbprint) |
+| **Export** | Downloads all supported Intune content types to JSON backup files |
+| **Import** | Restores policies from a backup into a target tenant |
+| **Monitor** | Compares current live state with the backup and reports additions, removals, and field-level modifications |
+| **Storage backends** | Local file system **or** Git repository (auto-commit + push) |
+| **Scheduling** | Run once (`--interval 0`) or loop on a configurable interval |
+| **Logging** | Structured logging via `Microsoft.Extensions.Logging` with configurable verbosity (`--verbosity`) |
+| **Configuration** | `appsettings.json`, environment variables, and/or CLI flags |
 ---
 
 **Export** 13 Intune policy types to JSON · **Import** them into any tenant · **Monitor** for configuration drift  
@@ -316,6 +326,33 @@ If the target directory doesn't exist, IntuneMonitor will automatically:
 # Poll every hour, suppress output when nothing changed
 dotnet run -- monitor --interval 60 --changes-only
 ```
+
+---
+
+## Logging
+
+IntuneMonitor uses `Microsoft.Extensions.Logging` for structured logging output.
+
+### Controlling log verbosity
+
+Use the `--verbosity` global flag to control the log level for any command:
+
+```bash
+# Default – informational messages
+dotnet run -- export
+
+# Verbose / debug output (shows per-item Graph progress)
+dotnet run -- export --verbosity Debug
+
+# Quiet – only warnings and errors
+dotnet run -- monitor --verbosity Warning
+
+# Silent – suppress all log output
+dotnet run -- export --verbosity None
+```
+
+Available levels (from most to least verbose):  
+`Trace` → `Debug` → `Information` (default) → `Warning` → `Error` → `Critical` → `None`
 
 ---
 

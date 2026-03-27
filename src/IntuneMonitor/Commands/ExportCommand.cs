@@ -4,6 +4,8 @@ using IntuneMonitor.Config;
 using IntuneMonitor.Graph;
 using IntuneMonitor.Models;
 using IntuneMonitor.Storage;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace IntuneMonitor.Commands;
 
@@ -13,10 +15,14 @@ namespace IntuneMonitor.Commands;
 public class ExportCommand
 {
     private readonly AppConfiguration _config;
+    private readonly ILogger<ExportCommand> _logger;
+    private readonly ILoggerFactory _loggerFactory;
 
-    public ExportCommand(AppConfiguration config)
+    public ExportCommand(AppConfiguration config, ILoggerFactory? loggerFactory = null)
     {
         _config = config ?? throw new ArgumentNullException(nameof(config));
+        _loggerFactory = loggerFactory ?? NullLoggerFactory.Instance;
+        _logger = _loggerFactory.CreateLogger<ExportCommand>();
     }
 
     /// <summary>
@@ -26,41 +32,41 @@ public class ExportCommand
         IEnumerable<string>? contentTypes = null,
         CancellationToken cancellationToken = default)
     {
-        Console.WriteLine("=== Intune Export ===");
+        _logger.LogInformation("=== Intune Export ===");
 
         // Authenticate
         TokenCredential credential;
         try
         {
             credential = CredentialFactory.Create(_config.Authentication);
-            Console.WriteLine($"Authentication configured (method: {_config.Authentication.Method})");
+            _logger.LogInformation("Authentication configured (method: {AuthMethod})", _config.Authentication.Method);
         }
         catch (Exception ex)
         {
-            Console.Error.WriteLine($"Authentication error: {ex.Message}");
+            _logger.LogError(ex, "Authentication error");
             return 0;
         }
 
         // Determine content types
         var types = ResolveContentTypes(contentTypes);
-        Console.WriteLine($"Content types to export: {string.Join(", ", types)}");
+        _logger.LogInformation("Content types to export: {ContentTypes}", string.Join(", ", types));
 
         // Create storage
         IBackupStorage storage;
         try
         {
-            storage = BackupStorageFactory.Create(_config.Backup);
-            Console.WriteLine($"Storage backend: {_config.Backup.StorageType} → {_config.Backup.Path}");
+            storage = BackupStorageFactory.Create(_config.Backup, _loggerFactory);
+            _logger.LogInformation("Storage backend: {StorageType} → {BackupPath}", _config.Backup.StorageType, _config.Backup.Path);
         }
         catch (Exception ex)
         {
-            Console.Error.WriteLine($"Storage configuration error: {ex.Message}");
+            _logger.LogError(ex, "Storage configuration error");
             return 0;
         }
 
         // Export from Graph
         var exporter = new IntuneExporter(credential);
-        var progress = new Progress<string>(msg => Console.WriteLine($"  {msg}"));
+        var progress = new Progress<string>(msg => _logger.LogDebug("{ProgressMessage}", msg));
 
         Dictionary<string, List<IntuneItem>> allItems;
         try
@@ -69,7 +75,7 @@ public class ExportCommand
         }
         catch (Exception ex)
         {
-            Console.Error.WriteLine($"Export error: {ex.Message}");
+            _logger.LogError(ex, "Export error");
             return 0;
         }
 
@@ -89,7 +95,7 @@ public class ExportCommand
             };
 
             await storage.SaveBackupAsync(contentType, document, cancellationToken);
-            Console.WriteLine($"Saved {items.Count} {contentType} item(s).");
+            _logger.LogInformation("Saved {ItemCount} {ContentType} item(s)", items.Count, contentType);
             totalItems += items.Count;
         }
 
@@ -97,7 +103,7 @@ public class ExportCommand
         var commitMsg = $"Intune export {DateTime.UtcNow:yyyy-MM-dd HH:mm:ss} UTC – {totalItems} items";
         await storage.FinalizeExportAsync(commitMsg, cancellationToken);
 
-        Console.WriteLine($"\nExport complete. {totalItems} total item(s) exported.");
+        _logger.LogInformation("Export complete. {TotalItems} total item(s) exported", totalItems);
         return totalItems;
     }
 
