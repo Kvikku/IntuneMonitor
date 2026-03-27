@@ -185,8 +185,14 @@ listTypesCommand.SetHandler((context) =>
 });
 
 // ---------------------------------------------------------------------------
-// Run
+// Run – interactive menu when no args, CLI otherwise
 // ---------------------------------------------------------------------------
+if (args.Length == 0)
+{
+    var menu = new InteractiveMenu(appConfig, CreateLoggerFactory);
+    return await menu.RunAsync();
+}
+
 return await rootCommand.InvokeAsync(args);
 
 // ---------------------------------------------------------------------------
