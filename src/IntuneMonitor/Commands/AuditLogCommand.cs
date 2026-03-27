@@ -84,9 +84,12 @@ public class AuditLogCommand
         // Print summary to console
         PrintSummary(report);
 
-        // Write reports
-        await WriteJsonReportAsync(report, jsonReportPath, cancellationToken);
-        await WriteHtmlReportAsync(report, htmlReportPath, cancellationToken);
+        // Write reports (timestamped subfolder)
+        var reportTimestamp = DateTime.UtcNow.ToString("yyyy-MM-dd_HHmmss");
+        var timestampedJsonPath = string.IsNullOrWhiteSpace(jsonReportPath) ? jsonReportPath : Reporting.ReportPath.WithTimestamp(jsonReportPath, reportTimestamp);
+        var timestampedHtmlPath = string.IsNullOrWhiteSpace(htmlReportPath) ? htmlReportPath : Reporting.ReportPath.WithTimestamp(htmlReportPath, reportTimestamp);
+        await WriteJsonReportAsync(report, timestampedJsonPath, cancellationToken);
+        await WriteHtmlReportAsync(report, timestampedHtmlPath, cancellationToken);
 
         return report;
     }

@@ -164,6 +164,9 @@ public class ExportCommand
         if (string.IsNullOrWhiteSpace(outputPath))
             return;
 
+        var timestamp = DateTime.UtcNow.ToString("yyyy-MM-dd_HHmmss");
+        outputPath = Reporting.ReportPath.WithTimestamp(outputPath, timestamp);
+
         try
         {
             await HtmlExportReportGenerator.WriteAsync(report, outputPath, cancellationToken);

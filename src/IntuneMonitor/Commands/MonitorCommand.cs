@@ -121,8 +121,10 @@ public class MonitorCommand
 
         PrintReport(report);
         ConsoleUI.WriteChangeReport(report);
-        await WriteReportAsync(report, cancellationToken);
-        await WriteHtmlReportAsync(report, cancellationToken);
+
+        var reportTimestamp = DateTime.UtcNow.ToString("yyyy-MM-dd_HHmmss");
+        await WriteReportAsync(report, reportTimestamp, cancellationToken);
+        await WriteHtmlReportAsync(report, reportTimestamp, cancellationToken);
 
         return report;
     }
@@ -235,11 +237,13 @@ public class MonitorCommand
         }
     }
 
-    private async Task WriteReportAsync(ChangeReport report, CancellationToken cancellationToken)
+    private async Task WriteReportAsync(ChangeReport report, string timestamp, CancellationToken cancellationToken)
     {
         var outputPath = _config.Monitor.ReportOutputPath;
         if (string.IsNullOrWhiteSpace(outputPath))
             return;
+
+        outputPath = Reporting.ReportPath.WithTimestamp(outputPath, timestamp);
 
         try
         {
@@ -257,11 +261,13 @@ public class MonitorCommand
         }
     }
 
-    private async Task WriteHtmlReportAsync(ChangeReport report, CancellationToken cancellationToken)
+    private async Task WriteHtmlReportAsync(ChangeReport report, string timestamp, CancellationToken cancellationToken)
     {
         var outputPath = _config.Monitor.HtmlReportOutputPath;
         if (string.IsNullOrWhiteSpace(outputPath))
             return;
+
+        outputPath = Reporting.ReportPath.WithTimestamp(outputPath, timestamp);
 
         try
         {

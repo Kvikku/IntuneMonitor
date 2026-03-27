@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Intune Monitor – Change Report 2026-03-27 10:48</title>
+<title>Intune Monitor – Change Report 2026-03-27 13:16</title>
 <style>
     :root {
         --bg: #f0f2f5; --fg: #1a1a2e; --meta: #555; --card-bg: #fff;
@@ -52,6 +52,7 @@
     h1 { font-size: 1.6rem; color: var(--fg); }
     .meta { color: var(--meta); font-size: 0.9rem; margin-top: 4px; }
     .meta strong { color: var(--fg); }
+    .meta code { font-size: 0.82rem; color: var(--code-color); background: var(--code-bg); padding: 2px 5px; border-radius: 3px; }
     #theme-toggle {
         background: var(--toggle-bg); color: var(--toggle-fg); border: none;
         border-radius: 8px; width: 40px; height: 40px; font-size: 1.3rem;
@@ -127,14 +128,14 @@
 <div class="header-row">
 <div>
 <h1>Intune Monitor – Change Report</h1>
-<p class="meta">Generated 2026-03-27 10:48:31 UTC &middot; Tenant: <strong>efc4afcc-96b9-49a9-8d5a-62e8dc89f984</strong></p>
+<p class="meta">Generated 2026-03-27 13:16:27 UTC &middot; Tenant: <strong>efc4afcc-96b9-49a9-8d5a-62e8dc89f984</strong></p>
 </div>
 <button id="theme-toggle" onclick="toggleTheme()" title="Toggle light/dark mode">&#9788;</button>
 </div>
 </header>
 <section class="summary">
 <div class="card total">
-<div class="card-value">1</div>
+<div class="card-value">8</div>
 <div class="card-label">Total Changes</div>
 </div>
 <div class="card added">
@@ -142,48 +143,117 @@
 <div class="card-label">Added</div>
 </div>
 <div class="card modified">
-<div class="card-value">1</div>
+<div class="card-value">0</div>
 <div class="card-label">Modified</div>
 </div>
 <div class="card removed">
-<div class="card-value">0</div>
+<div class="card-value">8</div>
 <div class="card-label">Removed</div>
 </div>
 </section>
 <section class="content-type">
-<h2>SettingsCatalog <span class="badge">1</span></h2>
+<h2>DeviceCompliancePolicy <span class="badge">2</span></h2>
 <table>
 <thead><tr><th>Change</th><th>Severity</th><th>Policy Name</th><th>Policy ID</th><th>Details</th></tr></thead>
 <tbody>
-<tr class="modified">
-<td><span class="change-tag modified">Modified</span></td>
-<td><span class="severity-tag warning">Warning</span></td>
+<tr class="removed">
+<td><span class="change-tag removed">Removed</span></td>
+<td><span class="severity-tag critical">Critical</span></td>
+<td class="policy-name">[TEST] Windows - Compliance - Defender for Endpoint</td>
+<td class="policy-id"><code>2f1ce558-2c64-4fb7-a448-466fe87e28cb</code></td>
+<td>
+<p class="detail-text">Policy &#39;[TEST] Windows - Compliance - Defender for Endpoint&#39; was deleted.</p>
+</td>
+</tr>
+<tr class="removed">
+<td><span class="change-tag removed">Removed</span></td>
+<td><span class="severity-tag critical">Critical</span></td>
+<td class="policy-name">Windows - Compliance</td>
+<td class="policy-id"><code>b6875d13-00ac-4e31-bb0b-b5f8b333817e</code></td>
+<td>
+<p class="detail-text">Policy &#39;Windows - Compliance&#39; was deleted.</p>
+</td>
+</tr>
+</tbody></table>
+</section>
+<section class="content-type">
+<h2>DeviceConfigurationPolicy <span class="badge">2</span></h2>
+<table>
+<thead><tr><th>Change</th><th>Severity</th><th>Policy Name</th><th>Policy ID</th><th>Details</th></tr></thead>
+<tbody>
+<tr class="removed">
+<td><span class="change-tag removed">Removed</span></td>
+<td><span class="severity-tag critical">Critical</span></td>
+<td class="policy-name">[TEST] Windows 11 - Start menu</td>
+<td class="policy-id"><code>6a29e7e7-d1a1-4f54-9b74-df0e3825637c</code></td>
+<td>
+<p class="detail-text">Policy &#39;[TEST] Windows 11 - Start menu&#39; was deleted.</p>
+</td>
+</tr>
+<tr class="removed">
+<td><span class="change-tag removed">Removed</span></td>
+<td><span class="severity-tag critical">Critical</span></td>
+<td class="policy-name">[TEST] Windows Update Ring - Pilot</td>
+<td class="policy-id"><code>04a9262c-a9ee-4421-8adb-2002a2b9bd94</code></td>
+<td>
+<p class="detail-text">Policy &#39;[TEST] Windows Update Ring - Pilot&#39; was deleted.</p>
+</td>
+</tr>
+</tbody></table>
+</section>
+<section class="content-type">
+<h2>PowerShellScript <span class="badge">1</span></h2>
+<table>
+<thead><tr><th>Change</th><th>Severity</th><th>Policy Name</th><th>Policy ID</th><th>Details</th></tr></thead>
+<tbody>
+<tr class="removed">
+<td><span class="change-tag removed">Removed</span></td>
+<td><span class="severity-tag critical">Critical</span></td>
+<td class="policy-name">[TEST] TEST PS 101</td>
+<td class="policy-id"><code>50f224cc-8a7d-4d5a-a2ca-b3a5ffc42890</code></td>
+<td>
+<p class="detail-text">Policy &#39;[TEST] TEST PS 101&#39; was deleted.</p>
+</td>
+</tr>
+</tbody></table>
+</section>
+<section class="content-type">
+<h2>ProactiveRemediation <span class="badge">1</span></h2>
+<table>
+<thead><tr><th>Change</th><th>Severity</th><th>Policy Name</th><th>Policy ID</th><th>Details</th></tr></thead>
+<tbody>
+<tr class="removed">
+<td><span class="change-tag removed">Removed</span></td>
+<td><span class="severity-tag critical">Critical</span></td>
+<td class="policy-name">[TEST] Disable local storage of passwords and credentials</td>
+<td class="policy-id"><code>6dc4e6e6-fd85-43be-b7a9-f312575a1e8f</code></td>
+<td>
+<p class="detail-text">Policy &#39;[TEST] Disable local storage of passwords and credentials&#39; was deleted.</p>
+</td>
+</tr>
+</tbody></table>
+</section>
+<section class="content-type">
+<h2>SettingsCatalog <span class="badge">2</span></h2>
+<table>
+<thead><tr><th>Change</th><th>Severity</th><th>Policy Name</th><th>Policy ID</th><th>Details</th></tr></thead>
+<tbody>
+<tr class="removed">
+<td><span class="change-tag removed">Removed</span></td>
+<td><span class="severity-tag critical">Critical</span></td>
+<td class="policy-name">Windows - Time Zone - Central European Standard Time</td>
+<td class="policy-id"><code>0b47f2c8-5fe3-4579-b58a-2b26bb3eaea5</code></td>
+<td>
+<p class="detail-text">Policy &#39;Windows - Time Zone - Central European Standard Time&#39; was deleted.</p>
+</td>
+</tr>
+<tr class="removed">
+<td><span class="change-tag removed">Removed</span></td>
+<td><span class="severity-tag critical">Critical</span></td>
 <td class="policy-name">Windows - Windows Hello For Business - Enable1</td>
 <td class="policy-id"><code>5f8fea59-5c61-47e5-b5de-6b563fae8ebf</code></td>
 <td>
-<p class="detail-text">Policy &#39;Windows - Windows Hello For Business - Enable1&#39; was modified (3 field(s) changed).</p>
-<details>
-<summary>3 field change(s)</summary>
-<table class="field-table">
-<thead><tr><th>Field</th><th>Before</th><th>After</th></tr></thead>
-<tbody>
-<tr>
-<td class="field-path">description</td>
-<td class="old-value">TEST123</td>
-<td class="new-value">TEST</td>
-</tr>
-<tr>
-<td class="field-path">name</td>
-<td class="old-value">Windows - Windows Hello For Business - Enable</td>
-<td class="new-value">Windows - Windows Hello For Business - Enable1</td>
-</tr>
-<tr>
-<td class="field-path">assignments.removed</td>
-<td class="old-value">Include: All Users</td>
-<td class="new-value">(null)</td>
-</tr>
-</tbody></table>
-</details>
+<p class="detail-text">Policy &#39;Windows - Windows Hello For Business - Enable1&#39; was deleted.</p>
 </td>
 </tr>
 </tbody></table>
