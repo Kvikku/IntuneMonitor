@@ -16,6 +16,7 @@
 | **Export** | Downloads all supported Intune content types to JSON backup files |
 | **Import** | Restores policies from a backup into a target tenant |
 | **Monitor** | Compares current live state with the backup and reports additions, removals, and field-level modifications |
+| **HTML Reports** | Self-contained HTML dashboards for export summaries and change reports |
 | **Storage backends** | Local file system **or** Git repository (auto-commit + push) |
 | **Scheduling** | Run once (`--interval 0`) or loop on a configurable interval |
 | **Logging** | Structured logging via `Microsoft.Extensions.Logging` with configurable verbosity (`--verbosity`) |
@@ -35,6 +36,7 @@ Works interactively, in CI/CD pipelines, Azure Automation runbooks, or as a sche
 - **13 policy types** — Settings Catalog, Compliance, Device Config, Scripts, Autopilot, Driver/Feature/Quality Updates, Assignment Filters, and more
 - **Git-native backups** — every export becomes a versioned commit, auto-pushed to your remote
 - **Deep diff engine** — field-level change detection with severity levels (Info / Warning / Critical)
+- **HTML dashboards** — self-contained export summaries and change reports, auto-opened in the browser
 - **Flexible auth** — client secret *or* X.509 certificate (PFX file, PEM, or Windows cert-store thumbprint)
 - **Zero-config scheduling** — built-in polling loop or run once for external schedulers
 - **Config anywhere** — `appsettings.json`, environment variables (`INTUNEMONITOR_` prefix), or CLI flags
@@ -129,6 +131,9 @@ dotnet run -- export
 
 # Export specific types only
 dotnet run -- export --content-types SettingsCatalog DeviceCompliancePolicy
+
+# Export with a custom HTML report path
+dotnet run -- export --html-report ./my-export-report.html
 ```
 
 ### `import`
@@ -156,6 +161,9 @@ dotnet run -- monitor --interval 30 --changes-only
 
 # Save a JSON report
 dotnet run -- monitor --report-path ./drift-report.json
+
+# Generate an HTML dashboard report
+dotnet run -- monitor --html-report ./change-report.html
 ```
 
 ### `list-types`
@@ -234,6 +242,8 @@ export INTUNEMONITOR_Backup__Path="/mnt/backup"
 | `GitAuthorName` | Commit author name |
 | `GitAuthorEmail` | Commit author email |
 | `AutoCommit` | Auto-push after export (default: `true`) |
+| `HtmlExportReportPath` | Path for the HTML export summary report (empty = skip) |
+| `OpenHtmlExportReport` | Auto-open the HTML export report in the browser (default: `true`) |
 
 </details>
 
@@ -245,6 +255,8 @@ export INTUNEMONITOR_Backup__Path="/mnt/backup"
 | `IntervalMinutes` | Polling interval. `0` = run once and exit |
 | `ChangesOnly` | Only print output when changes exist |
 | `ReportOutputPath` | Write JSON change report to this path |
+| `HtmlReportOutputPath` | Path for the HTML change-report dashboard (empty = skip) |
+| `OpenHtmlReport` | Auto-open the HTML change report in the browser (default: `true`) |
 | `MinSeverity` | Minimum severity: `Info`, `Warning`, or `Critical` |
 
 </details>
@@ -374,6 +386,7 @@ src/IntuneMonitor/
 ├── Config/             Strongly-typed configuration POCOs
 ├── Graph/              IntuneExporter & IntuneImporter (Graph API)
 ├── Models/             IntuneItem, BackupDocument, ChangeReport
+├── Reporting/          HtmlReportGenerator, HtmlExportReportGenerator, HtmlTheme
 ├── Storage/            IBackupStorage → LocalFileStorage, GitStorage
 └── Program.cs          CLI entry point (System.CommandLine)
 
