@@ -3,6 +3,7 @@ using IntuneMonitor.Authentication;
 using IntuneMonitor.Config;
 using IntuneMonitor.Graph;
 using IntuneMonitor.Models;
+using IntuneMonitor.Reporting;
 using IntuneMonitor.Storage;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -82,6 +83,7 @@ public class ExportCommand
         // Save to storage
         int totalItems = 0;
         string tenantId = _config.Authentication.TenantId;
+        var summaries = new List<ExportContentSummary>();
 
         foreach (var (contentType, items) in allItems)
         {
@@ -97,11 +99,29 @@ public class ExportCommand
             await storage.SaveBackupAsync(contentType, document, cancellationToken);
             _logger.LogInformation("Saved {ItemCount} {ContentType} item(s)", items.Count, contentType);
             totalItems += items.Count;
+
+            summaries.Add(new ExportContentSummary
+            {
+                ContentType = contentType,
+                ItemCount = items.Count,
+                ItemNames = items.Select(i => i.Name ?? i.Id ?? "(unknown)").ToList()
+            });
         }
 
         // Finalize (commit/push for Git storage)
         var commitMsg = $"Intune export {DateTime.UtcNow:yyyy-MM-dd HH:mm:ss} UTC – {totalItems} items";
         await storage.FinalizeExportAsync(commitMsg, cancellationToken);
+
+        // Generate HTML export report
+        await WriteHtmlReportAsync(new ExportReport
+        {
+            GeneratedAt = DateTime.UtcNow,
+            TenantId = tenantId,
+            TenantName = tenantId,
+            StorageType = _config.Backup.StorageType,
+            BackupPath = _config.Backup.Path,
+            ContentSummaries = summaries
+        }, cancellationToken);
 
         _logger.LogInformation("Export complete. {TotalItems} total item(s) exported", totalItems);
         return totalItems;
@@ -119,5 +139,32 @@ public class ExportCommand
             return _config.ContentTypes;
 
         return IntuneContentTypes.All.ToList();
+    }
+
+    private async Task WriteHtmlReportAsync(ExportReport report, CancellationToken cancellationToken)
+    {
+        var outputPath = _config.Backup.HtmlExportReportPath;
+        if (string.IsNullOrWhiteSpace(outputPath))
+            return;
+
+        try
+        {
+            await HtmlExportReportGenerator.WriteAsync(report, outputPath, cancellationToken);
+            _logger.LogInformation("HTML export report written to: {OutputPath}", outputPath);
+
+            if (_config.Backup.OpenHtmlExportReport)
+            {
+                var fullPath = Path.GetFullPath(outputPath);
+                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+                {
+                    FileName = fullPath,
+                    UseShellExecute = true
+                });
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to write HTML export report to '{OutputPath}'", outputPath);
+        }
     }
 }

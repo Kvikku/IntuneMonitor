@@ -1,0 +1,142 @@
+namespace IntuneMonitor.Reporting;
+
+/// <summary>
+/// Shared CSS theme (dark-first with light toggle) and JS script used by all HTML reports.
+/// </summary>
+internal static class HtmlTheme
+{
+    public static string GetStyles() => """
+        :root {
+            --bg: #f0f2f5; --fg: #1a1a2e; --meta: #555; --card-bg: #fff;
+            --card-shadow: rgba(0,0,0,0.08); --section-bg: #fff;
+            --th-bg: #f7f8fa; --th-border: #e0e0e0; --th-color: #555;
+            --td-border: #eef0f2; --code-bg: #f5f5f5; --code-color: #666;
+            --field-path-color: #555; --detail-color: #555; --footer-color: #aaa;
+            --label-color: #777; --badge-bg: #4a6fa5;
+            --old-bg: #fdf2f2; --old-fg: #c0392b; --new-bg: #f2fdf5; --new-fg: #1e8449;
+            --tag-added-bg: #e8f8ef; --tag-added-fg: #1e8449;
+            --tag-removed-bg: #fdedec; --tag-removed-fg: #c0392b;
+            --tag-modified-bg: #fef9e7; --tag-modified-fg: #b7950b;
+            --tag-info-bg: #eaf2f8; --tag-info-fg: #2e86c1;
+            --tag-warning-bg: #fef9e7; --tag-warning-fg: #b7950b;
+            --tag-critical-bg: #fdedec; --tag-critical-fg: #c0392b;
+            --summary-link: #4a6fa5; --no-changes-bg: #fff;
+            --toggle-bg: #e0e0e0; --toggle-fg: #333;
+            --field-th-bg: #fafbfc;
+        }
+        body.dark {
+            --bg: #0d1b2a; --fg: #d4dce6; --meta: #8899aa; --card-bg: #1b2a3e;
+            --card-shadow: rgba(0,0,0,0.3); --section-bg: #1b2a3e;
+            --th-bg: #162236; --th-border: #2a3f56; --th-color: #8899aa;
+            --td-border: #1f3044; --code-bg: #162236; --code-color: #8899aa;
+            --field-path-color: #8899aa; --detail-color: #8899aa; --footer-color: #4a6070;
+            --label-color: #6c8090; --badge-bg: #3a6098;
+            --old-bg: #2a1520; --old-fg: #f07070; --new-bg: #0f2a18; --new-fg: #5ddb7a;
+            --tag-added-bg: #0f2a18; --tag-added-fg: #5ddb7a;
+            --tag-removed-bg: #2a1520; --tag-removed-fg: #f07070;
+            --tag-modified-bg: #2a2510; --tag-modified-fg: #f0c040;
+            --tag-info-bg: #102838; --tag-info-fg: #5ab8f5;
+            --tag-warning-bg: #2a2510; --tag-warning-fg: #f0c040;
+            --tag-critical-bg: #2a1520; --tag-critical-fg: #f07070;
+            --summary-link: #5ab8f5; --no-changes-bg: #1b2a3e;
+            --toggle-bg: #2a3f56; --toggle-fg: #d4dce6;
+            --field-th-bg: #162236;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, sans-serif;
+            background: var(--bg); color: var(--fg); padding: 24px; line-height: 1.5;
+            transition: background 0.25s, color 0.25s;
+        }
+        header { margin-bottom: 24px; }
+        .header-row { display: flex; justify-content: space-between; align-items: flex-start; }
+        h1 { font-size: 1.6rem; color: var(--fg); }
+        .meta { color: var(--meta); font-size: 0.9rem; margin-top: 4px; }
+        .meta strong { color: var(--fg); }
+        .meta code { font-size: 0.82rem; color: var(--code-color); background: var(--code-bg); padding: 2px 5px; border-radius: 3px; }
+        #theme-toggle {
+            background: var(--toggle-bg); color: var(--toggle-fg); border: none;
+            border-radius: 8px; width: 40px; height: 40px; font-size: 1.3rem;
+            cursor: pointer; transition: background 0.2s;
+        }
+        #theme-toggle:hover { opacity: 0.8; }
+        .summary {
+            display: flex; gap: 16px; margin-bottom: 28px; flex-wrap: wrap;
+        }
+        .card {
+            background: var(--card-bg); border-radius: 10px; padding: 20px 28px;
+            min-width: 140px; box-shadow: 0 1px 3px var(--card-shadow);
+            border-left: 5px solid #ccc; flex: 1; transition: background 0.25s;
+        }
+        .card.total  { border-left-color: #4a6fa5; }
+        .card.added  { border-left-color: #27ae60; }
+        .card.modified { border-left-color: #f39c12; }
+        .card.removed  { border-left-color: #e74c3c; }
+        .card-value { font-size: 2rem; font-weight: 700; }
+        .card.total .card-value  { color: #4a6fa5; }
+        .card.added .card-value  { color: #27ae60; }
+        .card.modified .card-value { color: #f39c12; }
+        .card.removed .card-value  { color: #e74c3c; }
+        .card-label { font-size: 0.85rem; color: var(--label-color); margin-top: 2px; }
+        .content-type {
+            background: var(--section-bg); border-radius: 10px; padding: 20px 24px;
+            margin-bottom: 20px; box-shadow: 0 1px 3px var(--card-shadow); transition: background 0.25s;
+        }
+        .content-type h2 { font-size: 1.15rem; margin-bottom: 14px; color: var(--fg); }
+        .badge {
+            background: var(--badge-bg); color: #fff; font-size: 0.75rem; padding: 2px 9px;
+            border-radius: 12px; vertical-align: middle; margin-left: 6px;
+        }
+        table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+        thead th {
+            text-align: left; padding: 8px 10px; background: var(--th-bg);
+            border-bottom: 2px solid var(--th-border); color: var(--th-color); font-weight: 600;
+        }
+        tbody td { padding: 10px; border-bottom: 1px solid var(--td-border); vertical-align: top; }
+        .policy-name { font-weight: 600; }
+        .policy-id code {
+            font-size: 0.78rem; color: var(--code-color); background: var(--code-bg);
+            padding: 2px 5px; border-radius: 3px;
+        }
+        .change-tag, .severity-tag {
+            display: inline-block; font-size: 0.75rem; font-weight: 600;
+            padding: 3px 10px; border-radius: 4px; text-transform: uppercase; letter-spacing: 0.03em;
+        }
+        .change-tag.added    { background: var(--tag-added-bg); color: var(--tag-added-fg); }
+        .change-tag.removed  { background: var(--tag-removed-bg); color: var(--tag-removed-fg); }
+        .change-tag.modified { background: var(--tag-modified-bg); color: var(--tag-modified-fg); }
+        .severity-tag.info     { background: var(--tag-info-bg); color: var(--tag-info-fg); }
+        .severity-tag.warning  { background: var(--tag-warning-bg); color: var(--tag-warning-fg); }
+        .severity-tag.critical { background: var(--tag-critical-bg); color: var(--tag-critical-fg); }
+        details { margin-top: 6px; }
+        summary { cursor: pointer; color: var(--summary-link); font-size: 0.82rem; font-weight: 600; }
+        summary:hover { text-decoration: underline; }
+        .field-table { margin-top: 8px; font-size: 0.82rem; }
+        .field-table thead th { background: var(--field-th-bg); font-size: 0.78rem; }
+        .field-path { font-family: 'Cascadia Code', 'Fira Code', monospace; color: var(--field-path-color); white-space: nowrap; }
+        .old-value { color: var(--old-fg); background: var(--old-bg); word-break: break-all; }
+        .new-value { color: var(--new-fg); background: var(--new-bg); word-break: break-all; }
+        .detail-text { color: var(--detail-color); font-size: 0.83rem; margin-bottom: 6px; }
+        .no-changes {
+            background: var(--no-changes-bg); border-radius: 10px; padding: 40px;
+            text-align: center; color: #27ae60; font-size: 1.1rem; font-weight: 600;
+        }
+        footer { text-align: center; color: var(--footer-color); font-size: 0.78rem; margin-top: 32px; }
+    """;
+
+    public static string GetScript() => """
+        function toggleTheme() {
+            var body = document.body;
+            body.classList.toggle('dark');
+            var btn = document.getElementById('theme-toggle');
+            btn.innerHTML = body.classList.contains('dark') ? '&#9788;' : '&#9790;';
+            try { localStorage.setItem('intune-monitor-theme', body.classList.contains('dark') ? 'dark' : 'light'); } catch(e) {}
+        }
+        (function() {
+            try {
+                var saved = localStorage.getItem('intune-monitor-theme');
+                if (saved === 'light') { document.body.classList.remove('dark'); document.getElementById('theme-toggle').innerHTML = '&#9790;'; }
+            } catch(e) {}
+        })();
+    """;
+}

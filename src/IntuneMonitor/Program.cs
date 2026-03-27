@@ -63,6 +63,9 @@ rootCommand.AddGlobalOption(verbosityOption);
 // ---------------------------------------------------------------------------
 var exportCommand = new Command("export",
     "Export Intune policies to the configured backup storage (local file or Git).");
+var exportHtmlReportOption = new Option<string?>(
+    "--html-report", "Path to write an HTML export summary report (overrides appsettings.json).");
+exportCommand.AddOption(exportHtmlReportOption);
 rootCommand.AddCommand(exportCommand);
 
 exportCommand.SetHandler(async (context) =>
@@ -70,6 +73,10 @@ exportCommand.SetHandler(async (context) =>
     ApplyGlobalOverrides(appConfig, context.ParseResult,
         tenantIdOption, clientIdOption, clientSecretOption,
         certPathOption, certPasswordOption, certThumbprintOption, backupPathOption);
+
+    var exportHtmlPath = context.ParseResult.GetValueForOption(exportHtmlReportOption);
+    if (!string.IsNullOrWhiteSpace(exportHtmlPath))
+        appConfig.Backup.HtmlExportReportPath = exportHtmlPath;
 
     var logLevel = context.ParseResult.GetValueForOption(verbosityOption);
     using var loggerFactory = CreateLoggerFactory(logLevel);

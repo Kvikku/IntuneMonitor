@@ -93,3 +93,29 @@ public record ChangeReport
 
     public bool HasChanges => TotalCount > 0;
 }
+
+/// <summary>
+/// Summary of a single content type within an export.
+/// </summary>
+public record ExportContentSummary
+{
+    public required string ContentType { get; init; }
+    public int ItemCount { get; init; }
+    public List<string> ItemNames { get; init; } = new();
+}
+
+/// <summary>
+/// Summary report of an export operation.
+/// </summary>
+public record ExportReport
+{
+    public DateTime GeneratedAt { get; init; } = DateTime.UtcNow;
+    public string TenantId { get; init; } = string.Empty;
+    public string TenantName { get; init; } = string.Empty;
+    public string StorageType { get; init; } = string.Empty;
+    public string BackupPath { get; init; } = string.Empty;
+    public List<ExportContentSummary> ContentSummaries { get; init; } = new();
+
+    public int TotalItems => ContentSummaries.Sum(s => s.ItemCount);
+    public int ContentTypeCount => ContentSummaries.Count;
+}

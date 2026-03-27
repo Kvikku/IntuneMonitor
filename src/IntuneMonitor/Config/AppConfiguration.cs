@@ -99,6 +99,17 @@ public class BackupConfig
     /// Requires GitRemoteUrl to be set.
     /// </summary>
     public bool AutoCommit { get; set; } = true;
+
+    /// <summary>
+    /// Path to write an HTML export summary report.
+    /// Leave empty to skip HTML output.
+    /// </summary>
+    public string? HtmlExportReportPath { get; set; }
+
+    /// <summary>
+    /// When true, automatically opens the HTML export report in the default browser after generation.
+    /// </summary>
+    public bool OpenHtmlExportReport { get; set; } = true;
 }
 
 /// <summary>
