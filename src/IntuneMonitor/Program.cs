@@ -159,11 +159,15 @@ monitorCommand.SetHandler(async (context) =>
 // ---------------------------------------------------------------------------
 var listTypesCommand = new Command("list-types", "Display all supported Intune content types.");
 rootCommand.AddCommand(listTypesCommand);
-listTypesCommand.SetHandler(() =>
+listTypesCommand.SetHandler((context) =>
 {
-    Console.WriteLine("Supported content types:");
+    var logLevel = context.ParseResult.GetValueForOption(verbosityOption);
+    using var loggerFactory = CreateLoggerFactory(logLevel);
+    var logger = loggerFactory.CreateLogger("IntuneMonitor");
+
+    logger.LogInformation("Supported content types:");
     foreach (var ct in IntuneContentTypes.All)
-        Console.WriteLine($"  {ct,-40} → {IntuneContentTypes.FileNames[ct]}");
+        logger.LogInformation("  {ContentType} → {FileName}", ct.PadRight(40), IntuneContentTypes.FileNames[ct]);
 });
 
 // ---------------------------------------------------------------------------
