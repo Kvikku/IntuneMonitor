@@ -79,7 +79,7 @@ public class AuditLogCommand
         var periodEnd = DateTime.UtcNow;
         var periodStart = periodEnd.AddDays(-days);
 
-        var report = BuildReport(events, days, periodStart, periodEnd);
+        var report = BuildReport(events, days, periodStart, periodEnd, _config.Authentication.TenantId);
 
         // Print summary to console
         PrintSummary(report);
@@ -99,7 +99,8 @@ public class AuditLogCommand
         List<AuditEvent> events,
         int days,
         DateTime periodStart,
-        DateTime periodEnd)
+        DateTime periodEnd,
+        string? tenantId = null)
     {
         var byActivityType = events
             .Where(e => !string.IsNullOrEmpty(e.ActivityType))
@@ -120,7 +121,7 @@ public class AuditLogCommand
         return new AuditLogReport
         {
             GeneratedAt = DateTime.UtcNow,
-            TenantId = string.Empty, // Will be set by caller if needed
+            TenantId = tenantId ?? string.Empty,
             DaysReviewed = days,
             PeriodStart = periodStart,
             PeriodEnd = periodEnd,

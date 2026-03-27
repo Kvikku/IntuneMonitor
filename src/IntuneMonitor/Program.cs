@@ -181,6 +181,12 @@ var auditLogCommand = new Command("audit-log",
     "Review Intune audit logs and summarize changes for the last N days (1–30).");
 var daysOption = new Option<int>(
     "--days", () => 7, "Number of days to review (1–30).");
+daysOption.AddValidator(result =>
+{
+    var value = result.GetValueForOption(daysOption);
+    if (value < 1 || value > 30)
+        result.ErrorMessage = "--days must be between 1 and 30.";
+});
 var auditHtmlReportOption = new Option<string?>(
     "--html-report", "Path to write an HTML audit log report.");
 var auditJsonReportOption = new Option<string?>(
@@ -200,14 +206,6 @@ auditLogCommand.SetHandler(async (context) =>
     using var loggerFactory = CreateLoggerFactory(logLevel);
 
     var days = context.ParseResult.GetValueForOption(daysOption);
-    if (days < 1 || days > 30)
-    {
-        var logger = loggerFactory.CreateLogger("IntuneMonitor");
-        logger.LogError("--days must be between 1 and 30 (got {Days})", days);
-        context.ExitCode = 1;
-        return;
-    }
-
     var htmlPath = context.ParseResult.GetValueForOption(auditHtmlReportOption);
     var jsonPath = context.ParseResult.GetValueForOption(auditJsonReportOption);
 
