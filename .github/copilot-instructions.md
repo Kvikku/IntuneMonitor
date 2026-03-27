@@ -39,7 +39,7 @@ The project targets **net8.0**. Tests use **xUnit 2.5.3**.
 - **Async methods**: PascalCase with `Async` suffix (`RunAsync`, `ExportContentTypeAsync`)
 - **Properties**: PascalCase auto-properties (`ContentType`, `PolicyData`)
 - **Private fields**: `_camelCase` (`_logger`, `_config`, `_credential`)
-- **Static readonly collections**: `UPPER_SNAKE_CASE`
+- **Static readonly collections**: PascalCase (`WriteOptions`, `IgnoredFields`, `NoAssignmentsTypes`)
 
 ### Namespaces
 
@@ -47,7 +47,7 @@ Follow folder structure: `IntuneMonitor.{FolderName}` (e.g., `IntuneMonitor.Comm
 
 ### File Organization
 
-- One public class per file.
+- Group closely related public types in the same file (e.g., configuration POCOs or backup models), rather than enforcing one public class per file.
 - Use C# records for immutable data models (`IntuneItem`, `BackupDocument`, `PolicyChange`).
 - Factory pattern for object creation (`CredentialFactory`, `BackupStorageFactory`).
 - Static dictionaries in `IntuneContentTypes` for Graph endpoints, file names, and folder names.
@@ -74,7 +74,7 @@ _logger.LogError(ex, "Failed to import '{ItemName}'", itemName);
 
 - Wrap command execution in try-catch at the command level.
 - Log errors with `LogError(ex, "descriptive message with {Context}")`.
-- Current commands return `0` on failure (existing convention—note this suppresses non-zero exit codes).
+- `ExportCommand`/`ImportCommand` return an item count and use `0` items on failure; `MonitorCommand` returns a `ChangeReport`. CLI process exit codes are generally `0` unless `System.CommandLine` reports a parse error (command return values are not propagated to exit codes).
 - All async methods accept and honor `CancellationToken`.
 
 ## Authentication
@@ -107,7 +107,7 @@ Config POCOs live in `Config/AppConfiguration.cs`. Never commit `appsettings.jso
 
 ## CLI Commands
 
-Built with `System.CommandLine 2.0.0-beta4`. Four commands:
+Built with `System.CommandLine 2.0.0-beta4.22272.1`. Four commands:
 
 | Command | Purpose |
 |---|---|
