@@ -21,6 +21,7 @@ Thumbs.db
 # Runtime / secrets – never commit these
 appsettings.json
 intune-backup/
+reports/
 
 # Test results
 TestResults/
