@@ -1,0 +1,28 @@
+# Build outputs
+bin/
+obj/
+*.user
+*.suo
+
+# NuGet
+*.nupkg
+packages/
+.nuget/
+
+# IDE
+.vs/
+.idea/
+*.DotSettings.user
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Runtime / secrets – never commit these
+appsettings.json
+intune-backup/
+
+# Test results
+TestResults/
+*.trx
+*.coveragexml
