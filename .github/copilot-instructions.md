@@ -74,7 +74,7 @@ _logger.LogError(ex, "Failed to import '{ItemName}'", itemName);
 
 - Wrap command execution in try-catch at the command level.
 - Log errors with `LogError(ex, "descriptive message with {Context}")`.
-- Return `0` from command handlers on failure (graceful exit).
+- Current commands return `0` on failure (existing convention—note this suppresses non-zero exit codes).
 - All async methods accept and honor `CancellationToken`.
 
 ## Authentication
