@@ -169,6 +169,47 @@ monitorCommand.SetHandler(async (context) =>
 });
 
 // ---------------------------------------------------------------------------
+// audit-log command
+// ---------------------------------------------------------------------------
+var auditLogCommand = new Command("audit-log",
+    "Review Intune audit logs and summarize changes for the last N days (1–30).");
+var daysOption = new Option<int>(
+    "--days", () => 7, "Number of days to review (1–30).");
+var auditHtmlReportOption = new Option<string?>(
+    "--html-report", "Path to write an HTML audit log report.");
+var auditJsonReportOption = new Option<string?>(
+    "--json-report", "Path to write a JSON audit log report.");
+auditLogCommand.AddOption(daysOption);
+auditLogCommand.AddOption(auditHtmlReportOption);
+auditLogCommand.AddOption(auditJsonReportOption);
+rootCommand.AddCommand(auditLogCommand);
+
+auditLogCommand.SetHandler(async (context) =>
+{
+    ApplyGlobalOverrides(appConfig, context.ParseResult,
+        tenantIdOption, clientIdOption, clientSecretOption,
+        certPathOption, certPasswordOption, certThumbprintOption, backupPathOption);
+
+    var logLevel = context.ParseResult.GetValueForOption(verbosityOption);
+    using var loggerFactory = CreateLoggerFactory(logLevel);
+
+    var days = context.ParseResult.GetValueForOption(daysOption);
+    if (days < 1 || days > 30)
+    {
+        var logger = loggerFactory.CreateLogger("IntuneMonitor");
+        logger.LogError("--days must be between 1 and 30 (got {Days})", days);
+        context.ExitCode = 1;
+        return;
+    }
+
+    var htmlPath = context.ParseResult.GetValueForOption(auditHtmlReportOption);
+    var jsonPath = context.ParseResult.GetValueForOption(auditJsonReportOption);
+
+    var cmd = new AuditLogCommand(appConfig, loggerFactory);
+    await cmd.RunAsync(days, htmlPath, jsonPath);
+});
+
+// ---------------------------------------------------------------------------
 // list-types command – utility to display supported content types
 // ---------------------------------------------------------------------------
 var listTypesCommand = new Command("list-types", "Display all supported Intune content types.");
