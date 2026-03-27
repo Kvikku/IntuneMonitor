@@ -198,9 +198,27 @@ public class MonitorCommand
 
             foreach (var field in change.FieldChanges.Take(10))
             {
-                Console.WriteLine($"  Field: {field.FieldPath}");
-                Console.WriteLine($"    Before: {Truncate(field.OldValue, 120)}");
-                Console.WriteLine($"    After:  {Truncate(field.NewValue, 120)}");
+                if (field.FieldPath.StartsWith("assignments.", StringComparison.OrdinalIgnoreCase))
+                {
+                    // Human-readable assignment change
+                    var action = field.FieldPath.Split('.').Last();
+                    if (action.Equals("added", StringComparison.OrdinalIgnoreCase))
+                        Console.WriteLine($"  Assignment added: {field.NewValue}");
+                    else if (action.Equals("removed", StringComparison.OrdinalIgnoreCase))
+                        Console.WriteLine($"  Assignment removed: {field.OldValue}");
+                    else if (action.Equals("modified", StringComparison.OrdinalIgnoreCase))
+                    {
+                        Console.WriteLine($"  Assignment modified:");
+                        Console.WriteLine($"    Before: {field.OldValue}");
+                        Console.WriteLine($"    After:  {field.NewValue}");
+                    }
+                }
+                else
+                {
+                    Console.WriteLine($"  Field: {field.FieldPath}");
+                    Console.WriteLine($"    Before: {Truncate(field.OldValue, 120)}");
+                    Console.WriteLine($"    After:  {Truncate(field.NewValue, 120)}");
+                }
             }
 
             if (change.FieldChanges.Count > 10)

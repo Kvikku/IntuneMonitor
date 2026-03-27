@@ -22,6 +22,20 @@ public class IntuneExporter
         IntuneContentTypes.AssignmentFilter
     };
 
+    /// <summary>Well-known virtual group IDs used by Intune.</summary>
+    private static readonly Dictionary<string, string> WellKnownGroupIds = new(StringComparer.OrdinalIgnoreCase)
+    {
+        { "acacacac-9df4-4c7d-9d50-4ef0226f57a9", "All Users" },
+        { "adadadad-808e-44e2-905a-0b7873a8a531", "All Devices" }
+    };
+
+    /// <summary>Maps assignment target @odata.type to a friendly display name.</summary>
+    private static readonly Dictionary<string, string> VirtualTargetNames = new(StringComparer.OrdinalIgnoreCase)
+    {
+        { "#microsoft.graph.allLicensedUsersAssignmentTarget", "All Users" },
+        { "#microsoft.graph.allDevicesAssignmentTarget", "All Devices" }
+    };
+
     public IntuneExporter(TokenCredential credential)
     {
         _credential = credential ?? throw new ArgumentNullException(nameof(credential));
@@ -301,11 +315,16 @@ public class IntuneExporter
                 {
                     var targetDict = JsonElementToDict(target);
                     var groupId = GetStringProperty(target, "groupId");
+                    var odataType = GetStringProperty(target, "@odata.type");
 
                     if (groupId != null)
                     {
                         var groupName = await ResolveGroupNameAsync(httpClient, groupId, cancellationToken);
                         targetDict["groupDisplayName"] = groupName;
+                    }
+                    else if (odataType != null && VirtualTargetNames.TryGetValue(odataType, out var virtualName))
+                    {
+                        targetDict["groupDisplayName"] = virtualName;
                     }
 
                     dict["target"] = targetDict;
@@ -340,6 +359,13 @@ public class IntuneExporter
     {
         if (_groupNameCache.TryGetValue(groupId, out var cached))
             return cached;
+
+        // Check well-known virtual group IDs first
+        if (WellKnownGroupIds.TryGetValue(groupId, out var wellKnown))
+        {
+            _groupNameCache[groupId] = wellKnown;
+            return wellKnown;
+        }
 
         try
         {
