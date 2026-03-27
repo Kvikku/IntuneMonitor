@@ -29,10 +29,16 @@ jobs:
 
   publish:
     needs: test
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        rid: [win-x64, linux-x64, osx-x64]
+        include:
+          - rid: win-x64
+            os: ubuntu-latest
+          - rid: linux-x64
+            os: ubuntu-latest
+          - rid: osx-x64
+            os: macos-latest
 
     steps:
       - uses: actions/checkout@v4
