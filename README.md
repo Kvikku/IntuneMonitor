@@ -33,6 +33,7 @@ Works interactively, in CI/CD pipelines, Azure Automation runbooks, or as a sche
 ## Highlights
 
 - **One CLI, three commands** — `export`, `import`, `monitor` — plus `list-types` for discovery
+- **Interactive mode** — run with no arguments for a menu-driven UI with arrow-key navigation
 - **13 policy types** — Settings Catalog, Compliance, Device Config, Scripts, Autopilot, Driver/Feature/Quality Updates, Assignment Filters, and more
 - **Git-native backups** — every export becomes a versioned commit, auto-pushed to your remote
 - **Deep diff engine** — field-level change detection with severity levels (Info / Warning / Critical)
@@ -100,79 +101,52 @@ That's it. You're backing up Intune.
 
 ---
 
+## Documentation
+
+Full documentation is in the [`docs/`](docs/) folder:
+
+| Guide | Description |
+|---|---|
+| [Getting Started](docs/getting-started.md) | Prerequisites, app registration, first export |
+| [Commands](docs/commands.md) | Detailed reference for every CLI command and option |
+| [Interactive Mode](docs/interactive-mode.md) | Menu-driven UI when running without arguments |
+| [Configuration](docs/configuration.md) | All settings — appsettings.json, environment variables, CLI flags |
+| [Authentication](docs/authentication.md) | Client secret, certificate file, or cert-store thumbprint |
+| [Git Storage](docs/git-storage.md) | Version-controlled backups with auto-commit and push |
+| [Monitoring & Scheduling](docs/monitoring.md) | Drift detection, scheduling, severity filtering |
+| [CI/CD Integration](docs/cicd.md) | GitHub Actions, Azure DevOps, Docker examples |
+| [Architecture](docs/architecture.md) | Project structure, design decisions, extensibility |
+| [Troubleshooting](docs/troubleshooting.md) | Common issues and solutions |
+
+---
+
 ## Prerequisites
 
 | Requirement | Details |
 |---|---|
 | [.NET 8 SDK](https://dotnet.microsoft.com/download/dotnet/8.0) | Runtime for building and running the app |
-| Entra ID App Registration | With the Graph permissions below |
-
-### Required API Permissions (Application)
-
-| Permission | Needed for |
-|---|---|
-| `DeviceManagementConfiguration.Read.All` | Export & Monitor |
-| `DeviceManagementConfiguration.ReadWrite.All` | Import |
-| `DeviceManagementApps.Read.All` | Export & Monitor |
-| `DeviceManagementManagedDevices.Read.All` | Export & Monitor |
-| `DeviceManagementServiceConfig.Read.All` | Export & Monitor |
+| Entra ID App Registration | With the Graph permissions listed in [Getting Started](docs/getting-started.md#required-api-permissions) |
 
 ---
 
 ## Commands
 
-### `export`
-
-Downloads all (or selected) Intune policy types to JSON backup files.
-
-```bash
-# Export everything
-dotnet run -- export
-
-# Export specific types only
-dotnet run -- export --content-types SettingsCatalog DeviceCompliancePolicy
-
-# Export with a custom HTML report path
-dotnet run -- export --html-report ./my-export-report.html
-```
-
-### `import`
-
-Restores policies from a backup into the target tenant.
+| Command | Description |
+|---|---|
+| `export` | Download all Intune policies to backup storage |
+| `import` | Restore policies from backup into the tenant |
+| `monitor` | Compare live state against backup, report drift |
+| `list-types` | Display all 13 supported content types |
 
 ```bash
-# Dry run — see what would be created
-dotnet run -- import --dry-run
-
-# Apply
-dotnet run -- import
+dotnet run -- export                                  # Export all policies
+dotnet run -- import --dry-run                        # Preview an import
+dotnet run -- monitor --interval 30 --changes-only    # Continuous drift detection
+dotnet run -- list-types                              # Show supported types
+dotnet run                                            # Interactive menu
 ```
 
-### `monitor`
-
-Compares the live Intune state against your backup and reports changes.
-
-```bash
-# One-shot comparison
-dotnet run -- monitor
-
-# Continuous monitoring every 30 min, only print when things change
-dotnet run -- monitor --interval 30 --changes-only
-
-# Save a JSON report
-dotnet run -- monitor --report-path ./drift-report.json
-
-# Generate an HTML dashboard report
-dotnet run -- monitor --html-report ./change-report.html
-```
-
-### `list-types`
-
-Prints all 13 supported content types.
-
-```bash
-dotnet run -- list-types
-```
+See [Commands reference](docs/commands.md) for all options. Run without arguments for [interactive mode](docs/interactive-mode.md).
 
 ---
 
@@ -198,132 +172,19 @@ dotnet run -- list-types
 
 ## Configuration
 
-All settings can come from three sources (highest priority wins):
+All settings come from three sources (highest priority wins):
 
 ```
 CLI flags  >  Environment variables  >  appsettings.json
 ```
 
-Environment variables use the `INTUNEMONITOR_` prefix with double-underscore separators:
-
-```bash
-export INTUNEMONITOR_Authentication__TenantId="..."
-export INTUNEMONITOR_Authentication__ClientSecret="..."
-export INTUNEMONITOR_Backup__Path="/mnt/backup"
-```
-
-<details>
-<summary><b>Authentication settings</b></summary>
-
-| Key | Description |
-|---|---|
-| `TenantId` | Entra tenant ID (GUID or domain) |
-| `ClientId` | Application (client) ID |
-| `Method` | `ClientSecret` (default) or `Certificate` |
-| `ClientSecret` | Secret value (when Method = `ClientSecret`) |
-| `CertificatePath` | Path to PFX or PEM file (when Method = `Certificate`) |
-| `CertificatePassword` | Optional PFX password |
-| `CertificateThumbprint` | Thumbprint for Windows cert-store lookup |
-
-</details>
-
-<details>
-<summary><b>Backup settings</b></summary>
-
-| Key | Description |
-|---|---|
-| `StorageType` | `LocalFile` (default) or `Git` |
-| `Path` | Root directory for backups |
-| `SubDirectory` | Optional sub-directory within `Path` |
-| `GitRemoteUrl` | Remote URL (Git storage only) |
-| `GitBranch` | Branch name (default: `main`) |
-| `GitUsername` | HTTPS username |
-| `GitToken` | Personal access token |
-| `GitAuthorName` | Commit author name |
-| `GitAuthorEmail` | Commit author email |
-| `AutoCommit` | Auto-push after export (default: `true`) |
-| `HtmlExportReportPath` | Path for the HTML export summary report (empty = skip) |
-| `OpenHtmlExportReport` | Auto-open the HTML export report in the browser (default: `true`) |
-
-</details>
-
-<details>
-<summary><b>Monitor settings</b></summary>
-
-| Key | Description |
-|---|---|
-| `IntervalMinutes` | Polling interval. `0` = run once and exit |
-| `ChangesOnly` | Only print output when changes exist |
-| `ReportOutputPath` | Write JSON change report to this path |
-| `HtmlReportOutputPath` | Path for the HTML change-report dashboard (empty = skip) |
-| `OpenHtmlReport` | Auto-open the HTML change report in the browser (default: `true`) |
-| `MinSeverity` | Minimum severity: `Info`, `Warning`, or `Critical` |
-
-</details>
+See [Configuration](docs/configuration.md) for the full reference, and [Authentication](docs/authentication.md) for credential setup.
 
 ---
 
-## Authentication
+## Git Storage
 
-### Client Secret
-
-```json
-{
-  "Authentication": {
-    "Method": "ClientSecret",
-    "ClientSecret": "your-secret"
-  }
-}
-```
-
-### Certificate (PFX file)
-
-```json
-{
-  "Authentication": {
-    "Method": "Certificate",
-    "CertificatePath": "/path/to/cert.pfx",
-    "CertificatePassword": "optional-password"
-  }
-}
-```
-
-### Certificate (Windows cert store)
-
-```json
-{
-  "Authentication": {
-    "Method": "Certificate",
-    "CertificateThumbprint": "AABBCCDDEEFF..."
-  }
-}
-```
-
----
-
-## Git Storage Backend
-
-Turn every export into a versioned Git commit — perfect for audit trails and rollbacks.
-
-```json
-{
-  "Backup": {
-    "StorageType": "Git",
-    "Path": "./intune-backup-repo",
-    "GitRemoteUrl": "https://github.com/your-org/intune-backup.git",
-    "GitBranch": "main",
-    "GitUsername": "git-user",
-    "GitToken": "ghp_...",
-    "AutoCommit": true
-  }
-}
-```
-
-If the target directory doesn't exist, IntuneMonitor will automatically:
-1. `git init` a new repo
-2. Add the remote
-3. Create the branch
-4. Commit and push on each export
+Turn every export into a versioned Git commit. See [Git Storage guide](docs/git-storage.md).
 
 ---
 
@@ -331,40 +192,23 @@ If the target directory doesn't exist, IntuneMonitor will automatically:
 
 | Approach | How |
 |---|---|
-| **External scheduler** | Set `IntervalMinutes = 0` (default). Schedule via cron, Task Scheduler, Azure Automation, or GitHub Actions. |
-| **Built-in loop** | Set `IntervalMinutes > 0`. The process stays alive and polls on that interval. |
+| **Built-in loop** | `dotnet run -- monitor --interval 60` |
+| **External scheduler** | Cron, Task Scheduler, GitHub Actions, Azure Automation |
 
-```bash
-# Poll every hour, suppress output when nothing changed
-dotnet run -- monitor --interval 60 --changes-only
-```
+See [Monitoring & Scheduling](docs/monitoring.md) and [CI/CD Integration](docs/cicd.md).
 
 ---
 
 ## Logging
 
-IntuneMonitor uses `Microsoft.Extensions.Logging` for structured logging output.
-
-### Controlling log verbosity
-
-Use the `--verbosity` global flag to control the log level for any command:
+Use `--verbosity` to control log output on any command:
 
 ```bash
-# Default – informational messages
-dotnet run -- export
-
-# Verbose / debug output (shows per-item Graph progress)
-dotnet run -- export --verbosity Debug
-
-# Quiet – only warnings and errors
-dotnet run -- monitor --verbosity Warning
-
-# Silent – suppress all log output
-dotnet run -- export --verbosity None
+dotnet run -- export --verbosity Debug    # Verbose
+dotnet run -- monitor --verbosity Warning # Quiet
 ```
 
-Available levels (from most to least verbose):  
-`Trace` → `Debug` → `Information` (default) → `Warning` → `Error` → `Critical` → `None`
+Levels: `Trace` → `Debug` → `Information` (default) → `Warning` → `Error` → `Critical` → `None`
 
 ---
 
@@ -388,11 +232,16 @@ src/IntuneMonitor/
 ├── Models/             IntuneItem, BackupDocument, ChangeReport
 ├── Reporting/          HtmlReportGenerator, HtmlExportReportGenerator, HtmlTheme
 ├── Storage/            IBackupStorage → LocalFileStorage, GitStorage
-└── Program.cs          CLI entry point (System.CommandLine)
+├── UI/                 ConsoleUI (Spectre.Console) + InteractiveMenu
+└── Program.cs          Entry point — CLI routing + interactive menu
 
 tests/IntuneMonitor.Tests/
 └── PolicyComparerTests.cs
+
+docs/                   Full documentation
 ```
+
+See [Architecture](docs/architecture.md) for design details.
 
 ---
 
