@@ -37,6 +37,7 @@ internal static class HtmlReportHelpers
         string pageTitle,
         string headerTitle,
         string subtitle,
+        string? subtitle2 = null,
         string? extraStyles = null)
     {
         sb.AppendLine("<!DOCTYPE html>");
@@ -58,6 +59,8 @@ internal static class HtmlReportHelpers
         sb.AppendLine("<div>");
         sb.AppendLine($"<h1>{Encode(headerTitle)}</h1>");
         sb.AppendLine($"<p class=\"meta\">{subtitle}</p>");
+        if (!string.IsNullOrEmpty(subtitle2))
+            sb.AppendLine($"<p class=\"meta\">{subtitle2}</p>");
         sb.AppendLine("</div>");
         sb.AppendLine("<button id=\"theme-toggle\" onclick=\"toggleTheme()\" title=\"Toggle light/dark mode\">&#9788;</button>");
         sb.AppendLine("</div>");
