@@ -33,6 +33,7 @@ public class InteractiveMenu
                         "Export policies",
                         "Import policies",
                         "Monitor for changes",
+                        "Review audit logs",
                         "List content types",
                         "Settings overview",
                         "Exit"));
@@ -47,6 +48,9 @@ public class InteractiveMenu
                     break;
                 case "Monitor for changes":
                     await RunMonitorAsync();
+                    break;
+                case "Review audit logs":
+                    await RunAuditLogAsync();
                     break;
                 case "List content types":
                     ConsoleUI.WriteContentTypesTable();
@@ -129,6 +133,44 @@ public class InteractiveMenu
         using var loggerFactory = _loggerFactoryCreator(LogLevel.Information);
         var cmd = new MonitorCommand(_config, loggerFactory);
         await cmd.RunScheduledAsync(types, cts.Token);
+    }
+
+    private async Task RunAuditLogAsync()
+    {
+        var days = AnsiConsole.Prompt(
+            new TextPrompt<int>("How many days to review?")
+                .DefaultValue(7)
+                .Validate(v => v is >= 1 and <= 30
+                    ? ValidationResult.Success()
+                    : ValidationResult.Error("Must be between 1 and 30")));
+
+        string? htmlPath = null;
+        var htmlReport = AnsiConsole.Confirm("Generate HTML audit log report?", false);
+        if (htmlReport)
+        {
+            htmlPath = AnsiConsole.Prompt(
+                new TextPrompt<string>("  Report path:")
+                    .DefaultValue("reports/audit-log-report.html")
+                    .AllowEmpty());
+            if (string.IsNullOrWhiteSpace(htmlPath))
+                htmlPath = null;
+        }
+
+        string? jsonPath = null;
+        var jsonReport = AnsiConsole.Confirm("Generate JSON audit log report?", false);
+        if (jsonReport)
+        {
+            jsonPath = AnsiConsole.Prompt(
+                new TextPrompt<string>("  Report path:")
+                    .DefaultValue("reports/audit-log-report.json")
+                    .AllowEmpty());
+            if (string.IsNullOrWhiteSpace(jsonPath))
+                jsonPath = null;
+        }
+
+        using var loggerFactory = _loggerFactoryCreator(LogLevel.Information);
+        var cmd = new AuditLogCommand(_config, loggerFactory);
+        await cmd.RunAsync(days, htmlPath, jsonPath);
     }
 
     private List<string>? PromptContentTypes()
