@@ -6,6 +6,8 @@ using IntuneMonitor.Config;
 using IntuneMonitor.Graph;
 using IntuneMonitor.Models;
 using IntuneMonitor.Storage;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace IntuneMonitor.Commands;
 
@@ -22,10 +24,14 @@ public class MonitorCommand
     };
 
     private readonly AppConfiguration _config;
+    private readonly ILogger<MonitorCommand> _logger;
+    private readonly ILoggerFactory _loggerFactory;
 
-    public MonitorCommand(AppConfiguration config)
+    public MonitorCommand(AppConfiguration config, ILoggerFactory? loggerFactory = null)
     {
         _config = config ?? throw new ArgumentNullException(nameof(config));
+        _loggerFactory = loggerFactory ?? NullLoggerFactory.Instance;
+        _logger = _loggerFactory.CreateLogger<MonitorCommand>();
     }
 
     /// <summary>
@@ -35,8 +41,8 @@ public class MonitorCommand
         IEnumerable<string>? contentTypes = null,
         CancellationToken cancellationToken = default)
     {
-        Console.WriteLine("=== Intune Monitor ===");
-        Console.WriteLine($"Started at {DateTime.UtcNow:yyyy-MM-dd HH:mm:ss} UTC");
+        _logger.LogInformation("=== Intune Monitor ===");
+        _logger.LogInformation("Started at {StartTime} UTC", DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss"));
 
         // Authenticate
         TokenCredential credential;
@@ -46,7 +52,7 @@ public class MonitorCommand
         }
         catch (Exception ex)
         {
-            Console.Error.WriteLine($"Authentication error: {ex.Message}");
+            _logger.LogError(ex, "Authentication error");
             return EmptyReport();
         }
 
@@ -57,17 +63,17 @@ public class MonitorCommand
         IBackupStorage storage;
         try
         {
-            storage = BackupStorageFactory.Create(_config.Backup);
+            storage = BackupStorageFactory.Create(_config.Backup, _loggerFactory);
         }
         catch (Exception ex)
         {
-            Console.Error.WriteLine($"Storage error: {ex.Message}");
+            _logger.LogError(ex, "Storage error");
             return EmptyReport();
         }
 
         // Fetch current state from Graph
         var exporter = new IntuneExporter(credential);
-        var progress = new Progress<string>(msg => Console.WriteLine($"  {msg}"));
+        var progress = new Progress<string>(msg => _logger.LogDebug("{ProgressMessage}", msg));
 
         Dictionary<string, List<IntuneItem>> liveData;
         try
@@ -76,7 +82,7 @@ public class MonitorCommand
         }
         catch (Exception ex)
         {
-            Console.Error.WriteLine($"Failed to fetch data from Graph: {ex.Message}");
+            _logger.LogError(ex, "Failed to fetch data from Graph");
             return EmptyReport();
         }
 
@@ -126,7 +132,7 @@ public class MonitorCommand
             return;
         }
 
-        Console.WriteLine($"Scheduled monitoring: running every {intervalMinutes} minute(s). Press Ctrl+C to stop.");
+        _logger.LogInformation("Scheduled monitoring: running every {IntervalMinutes} minute(s). Press Ctrl+C to stop", intervalMinutes);
 
         while (!cancellationToken.IsCancellationRequested)
         {
@@ -140,10 +146,10 @@ public class MonitorCommand
             }
             catch (Exception ex)
             {
-                Console.Error.WriteLine($"Monitor run failed: {ex.Message}");
+                _logger.LogError(ex, "Monitor run failed");
             }
 
-            Console.WriteLine($"Next run in {intervalMinutes} minute(s). Waiting...");
+            _logger.LogInformation("Next run in {IntervalMinutes} minute(s). Waiting...", intervalMinutes);
             try
             {
                 await Task.Delay(TimeSpan.FromMinutes(intervalMinutes), cancellationToken);
@@ -154,7 +160,7 @@ public class MonitorCommand
             }
         }
 
-        Console.WriteLine("Monitoring stopped.");
+        _logger.LogInformation("Monitoring stopped");
     }
 
     // -------------------------------------------------------------------------
@@ -166,15 +172,13 @@ public class MonitorCommand
         if (!report.HasChanges)
         {
             if (!_config.Monitor.ChangesOnly)
-                Console.WriteLine("\n✓ No changes detected.");
+                _logger.LogInformation("No changes detected");
             return;
         }
 
-        Console.WriteLine($"\n{'=',-60}");
-        Console.WriteLine($"CHANGE REPORT – {report.GeneratedAt:yyyy-MM-dd HH:mm:ss} UTC");
-        Console.WriteLine($"Tenant: {report.TenantName}");
-        Console.WriteLine($"Changes: {report.AddedCount} added, {report.RemovedCount} removed, {report.ModifiedCount} modified");
-        Console.WriteLine($"{'=',-60}");
+        _logger.LogWarning("CHANGE REPORT – {ReportTime} UTC | Tenant: {TenantName} | Changes: {AddedCount} added, {RemovedCount} removed, {ModifiedCount} modified",
+            report.GeneratedAt.ToString("yyyy-MM-dd HH:mm:ss"), report.TenantName,
+            report.AddedCount, report.RemovedCount, report.ModifiedCount);
 
         var minSeverity = ParseSeverity(_config.Monitor.MinSeverity);
 
@@ -190,42 +194,35 @@ public class MonitorCommand
                 _ => "?"
             };
 
-            Console.WriteLine($"\n{icon} [{change.ContentType}] {change.PolicyName} ({change.ChangeType})");
-            Console.WriteLine($"  ID: {change.PolicyId}");
+            _logger.LogWarning("{Icon} [{ContentType}] {PolicyName} ({ChangeType}) | ID: {PolicyId}",
+                icon, change.ContentType, change.PolicyName, change.ChangeType, change.PolicyId);
 
             if (!string.IsNullOrEmpty(change.Details))
-                Console.WriteLine($"  Details: {change.Details}");
+                _logger.LogWarning("  Details: {Details}", change.Details);
 
             foreach (var field in change.FieldChanges.Take(10))
             {
                 if (field.FieldPath.StartsWith("assignments.", StringComparison.OrdinalIgnoreCase))
                 {
-                    // Human-readable assignment change
                     var action = field.FieldPath.Split('.').Last();
                     if (action.Equals("added", StringComparison.OrdinalIgnoreCase))
-                        Console.WriteLine($"  Assignment added: {field.NewValue}");
+                        _logger.LogWarning("  Assignment added: {NewValue}", field.NewValue);
                     else if (action.Equals("removed", StringComparison.OrdinalIgnoreCase))
-                        Console.WriteLine($"  Assignment removed: {field.OldValue}");
+                        _logger.LogWarning("  Assignment removed: {OldValue}", field.OldValue);
                     else if (action.Equals("modified", StringComparison.OrdinalIgnoreCase))
-                    {
-                        Console.WriteLine($"  Assignment modified:");
-                        Console.WriteLine($"    Before: {field.OldValue}");
-                        Console.WriteLine($"    After:  {field.NewValue}");
-                    }
+                        _logger.LogWarning("  Assignment modified | Before: {OldValue} | After: {NewValue}",
+                            field.OldValue, field.NewValue);
                 }
                 else
                 {
-                    Console.WriteLine($"  Field: {field.FieldPath}");
-                    Console.WriteLine($"    Before: {Truncate(field.OldValue, 120)}");
-                    Console.WriteLine($"    After:  {Truncate(field.NewValue, 120)}");
+                    _logger.LogWarning("  Field: {FieldPath} | Before: {OldValue} | After: {NewValue}",
+                        field.FieldPath, Truncate(field.OldValue, 120), Truncate(field.NewValue, 120));
                 }
             }
 
             if (change.FieldChanges.Count > 10)
-                Console.WriteLine($"  ... and {change.FieldChanges.Count - 10} more field change(s).");
+                _logger.LogWarning("  ... and {RemainingCount} more field change(s)", change.FieldChanges.Count - 10);
         }
-
-        Console.WriteLine($"\n{'=',-60}");
     }
 
     private async Task WriteReportAsync(ChangeReport report, CancellationToken cancellationToken)
@@ -242,11 +239,11 @@ public class MonitorCommand
 
             var json = JsonSerializer.Serialize(report, ReportWriteOptions);
             await File.WriteAllTextAsync(outputPath, json, cancellationToken);
-            Console.WriteLine($"Report written to: {outputPath}");
+            _logger.LogInformation("Report written to: {OutputPath}", outputPath);
         }
         catch (Exception ex)
         {
-            Console.Error.WriteLine($"Failed to write report to '{outputPath}': {ex.Message}");
+            _logger.LogError(ex, "Failed to write report to '{OutputPath}'", outputPath);
         }
     }
 
