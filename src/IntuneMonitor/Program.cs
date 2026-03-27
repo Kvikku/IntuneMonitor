@@ -112,11 +112,14 @@ var monitorCommand = new Command("monitor",
     "Uses Monitor.IntervalMinutes from appsettings.json for scheduled runs (0 = run once).");
 var reportPathOption = new Option<string?>(
     "--report-path", "Path to write the JSON change report (overrides appsettings.json).");
+var htmlReportOption = new Option<string?>(
+    "--html-report", "Path to write an HTML dashboard report (overrides appsettings.json).");
 var intervalOption = new Option<int?>(
     "--interval", "Polling interval in minutes. 0 = run once (overrides appsettings.json).");
 var changesOnlyOption = new Option<bool>(
     "--changes-only", "Only print output when changes are detected.");
 monitorCommand.AddOption(reportPathOption);
+monitorCommand.AddOption(htmlReportOption);
 monitorCommand.AddOption(intervalOption);
 monitorCommand.AddOption(changesOnlyOption);
 rootCommand.AddCommand(monitorCommand);
@@ -130,6 +133,10 @@ monitorCommand.SetHandler(async (context) =>
     var reportPath = context.ParseResult.GetValueForOption(reportPathOption);
     if (!string.IsNullOrWhiteSpace(reportPath))
         appConfig.Monitor.ReportOutputPath = reportPath;
+
+    var htmlPath = context.ParseResult.GetValueForOption(htmlReportOption);
+    if (!string.IsNullOrWhiteSpace(htmlPath))
+        appConfig.Monitor.HtmlReportOutputPath = htmlPath;
 
     var interval = context.ParseResult.GetValueForOption(intervalOption);
     if (interval.HasValue)

@@ -5,6 +5,7 @@ using IntuneMonitor.Comparison;
 using IntuneMonitor.Config;
 using IntuneMonitor.Graph;
 using IntuneMonitor.Models;
+using IntuneMonitor.Reporting;
 using IntuneMonitor.Storage;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -113,6 +114,7 @@ public class MonitorCommand
 
         PrintReport(report);
         await WriteReportAsync(report, cancellationToken);
+        await WriteHtmlReportAsync(report, cancellationToken);
 
         return report;
     }
@@ -244,6 +246,33 @@ public class MonitorCommand
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to write report to '{OutputPath}'", outputPath);
+        }
+    }
+
+    private async Task WriteHtmlReportAsync(ChangeReport report, CancellationToken cancellationToken)
+    {
+        var outputPath = _config.Monitor.HtmlReportOutputPath;
+        if (string.IsNullOrWhiteSpace(outputPath))
+            return;
+
+        try
+        {
+            await HtmlReportGenerator.WriteAsync(report, outputPath, cancellationToken);
+            _logger.LogInformation("HTML report written to: {OutputPath}", outputPath);
+
+            if (_config.Monitor.OpenHtmlReport)
+            {
+                var fullPath = Path.GetFullPath(outputPath);
+                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+                {
+                    FileName = fullPath,
+                    UseShellExecute = true
+                });
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to write HTML report to '{OutputPath}'", outputPath);
         }
     }
 

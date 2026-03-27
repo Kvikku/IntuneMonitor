@@ -126,4 +126,15 @@ public class MonitorConfig
     /// Defaults to "Info" (report everything).
     /// </summary>
     public string MinSeverity { get; set; } = "Info";
+
+    /// <summary>
+    /// Path to write an HTML dashboard report.
+    /// Leave empty to skip HTML output.
+    /// </summary>
+    public string? HtmlReportOutputPath { get; set; }
+
+    /// <summary>
+    /// When true, automatically opens the HTML report in the default browser after generation.
+    /// </summary>
+    public bool OpenHtmlReport { get; set; } = true;
 }
