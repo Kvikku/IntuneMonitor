@@ -43,7 +43,7 @@ public class ExportCommand
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Authentication error: {Message}", ex.Message);
+            _logger.LogError(ex, "Authentication error");
             return 0;
         }
 
@@ -60,7 +60,7 @@ public class ExportCommand
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Storage configuration error: {Message}", ex.Message);
+            _logger.LogError(ex, "Storage configuration error");
             return 0;
         }
 
@@ -75,7 +75,7 @@ public class ExportCommand
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Export error: {Message}", ex.Message);
+            _logger.LogError(ex, "Export error");
             return 0;
         }
 

@@ -52,7 +52,7 @@ public class MonitorCommand
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Authentication error: {Message}", ex.Message);
+            _logger.LogError(ex, "Authentication error");
             return EmptyReport();
         }
 
@@ -67,7 +67,7 @@ public class MonitorCommand
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Storage error: {Message}", ex.Message);
+            _logger.LogError(ex, "Storage error");
             return EmptyReport();
         }
 
@@ -82,7 +82,7 @@ public class MonitorCommand
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to fetch data from Graph: {Message}", ex.Message);
+            _logger.LogError(ex, "Failed to fetch data from Graph");
             return EmptyReport();
         }
 
@@ -146,7 +146,7 @@ public class MonitorCommand
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Monitor run failed: {Message}", ex.Message);
+                _logger.LogError(ex, "Monitor run failed");
             }
 
             _logger.LogInformation("Next run in {IntervalMinutes} minute(s). Waiting...", intervalMinutes);
@@ -229,7 +229,7 @@ public class MonitorCommand
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to write report to '{OutputPath}': {Message}", outputPath, ex.Message);
+            _logger.LogError(ex, "Failed to write report to '{OutputPath}'", outputPath);
         }
     }
 

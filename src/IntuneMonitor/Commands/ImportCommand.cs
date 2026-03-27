@@ -47,7 +47,7 @@ public class ImportCommand
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Authentication error: {Message}", ex.Message);
+            _logger.LogError(ex, "Authentication error");
             return 0;
         }
 
@@ -62,7 +62,7 @@ public class ImportCommand
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Storage error: {Message}", ex.Message);
+            _logger.LogError(ex, "Storage error");
             return 0;
         }
 
@@ -106,7 +106,7 @@ public class ImportCommand
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogError(ex, "Failed to import '{ItemName}': {Message}", item.Name, ex.Message);
+                    _logger.LogError(ex, "Failed to import '{ItemName}'", item.Name);
                     errorCount++;
                 }
             }
