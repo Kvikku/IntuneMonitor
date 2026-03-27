@@ -72,6 +72,14 @@ public class IntuneExporter
                 if (NeedsDetailFetch(contentType) && id != null)
                 {
                     fullData = await FetchItemDetailAsync(httpClient, endpoint, id, cancellationToken);
+
+                    // Settings Catalog stores actual settings in a separate /settings sub-resource
+                    if (contentType.Equals(IntuneContentTypes.SettingsCatalog, StringComparison.OrdinalIgnoreCase)
+                        && fullData != null)
+                    {
+                        fullData = await MergeSettingsCatalogSettingsAsync(
+                            httpClient, endpoint, id, fullData.Value, cancellationToken);
+                    }
                 }
                 else
                 {
@@ -170,6 +178,58 @@ public class IntuneExporter
         catch
         {
             return null;
+        }
+    }
+
+    /// <summary>
+    /// Fetches the /settings sub-resource for a Settings Catalog policy and merges
+    /// the settings array into the policy JSON as a "settings" property.
+    /// </summary>
+    private async Task<JsonElement?> MergeSettingsCatalogSettingsAsync(
+        HttpClient httpClient,
+        string endpoint,
+        string itemId,
+        JsonElement policyDetail,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var allSettings = new List<JsonElement>();
+            string? url = $"https://graph.microsoft.com/beta/{endpoint}/{itemId}/settings";
+
+            while (url != null)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                var response = await httpClient.GetAsync(url, cancellationToken);
+                response.EnsureSuccessStatusCode();
+                var json = await response.Content.ReadAsStringAsync(cancellationToken);
+                var root = JsonSerializer.Deserialize<JsonElement>(json);
+
+                if (root.TryGetProperty("value", out var valueArray))
+                {
+                    foreach (var setting in valueArray.EnumerateArray())
+                        allSettings.Add(setting);
+                }
+
+                url = root.TryGetProperty("@odata.nextLink", out var nextProp)
+                    ? nextProp.GetString()
+                    : null;
+            }
+
+            // Merge: copy all existing properties and add/replace "settings"
+            var dict = new Dictionary<string, object?>();
+            foreach (var prop in policyDetail.EnumerateObject())
+                dict[prop.Name] = prop.Value;
+
+            dict["settings"] = allSettings;
+
+            var merged = JsonSerializer.Serialize(dict);
+            return JsonSerializer.Deserialize<JsonElement>(merged);
+        }
+        catch
+        {
+            // If fetching settings fails, return the policy detail as-is
+            return policyDetail;
         }
     }
 
