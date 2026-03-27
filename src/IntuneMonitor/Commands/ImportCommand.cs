@@ -102,6 +102,7 @@ public class ImportCommand
                 {
                     var imported = await importer.ImportItemAsync(item, cancellationToken);
                     _logger.LogInformation("Imported: {ImportedName}", imported);
+                    successCount++;
                 }
                 catch (Exception ex)
                 {
