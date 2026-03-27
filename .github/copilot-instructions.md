@@ -2,7 +2,20 @@
 
 ## Project Overview
 
-IntuneMonitor is a .NET 8 CLI tool for backing up, restoring, and drift-detecting Microsoft Intune configurations. It uses Azure.Identity for authentication, direct HttpClient calls to the Microsoft Graph beta API, and System.CommandLine for CLI parsing.
+IntuneMonitor is a .NET 8 CLI tool for backing up, restoring, and drift-detecting Microsoft Intune configurations. It uses Azure.Identity for authentication, direct HttpClient calls to the Microsoft Graph beta API, System.CommandLine for CLI parsing, and Spectre.Console for rich terminal UI.
+
+**User-facing docs live in `docs/`.** This file is for coding agents — covering conventions, patterns, and guardrails needed to make correct changes.
+
+## Quick Reference
+
+```bash
+dotnet build                             # Build
+dotnet test tests/IntuneMonitor.Tests/   # Run tests
+dotnet run                               # Interactive menu (no args)
+dotnet run -- export                     # Direct CLI mode (with args)
+```
+
+Target: **net8.0** · Tests: **xUnit 2.5.3** · UI: **Spectre.Console 0.49.1**
 
 ## Architecture
 
@@ -14,22 +27,26 @@ src/IntuneMonitor/
 ├── Config/           # Strongly-typed configuration POCOs
 ├── Graph/            # IntuneExporter, IntuneImporter – Graph API clients
 ├── Models/           # IntuneItem, BackupDocument, ChangeReport, PolicyChange
-├── Reporting/        # HtmlReportGenerator – self-contained HTML dashboards
+├── Reporting/        # HtmlReportGenerator, HtmlExportReportGenerator, HtmlTheme
 ├── Storage/          # IBackupStorage + LocalFile/Git implementations
-└── Program.cs        # CLI entry point (System.CommandLine)
+├── UI/               # ConsoleUI (Spectre.Console helpers) + InteractiveMenu
+└── Program.cs        # Entry point – interactive menu (no args) or CLI routing (with args)
 
 tests/IntuneMonitor.Tests/
-└── PolicyComparerTests.cs   # xUnit tests for the diff engine
+└── PolicyComparerTests.cs
+
+docs/                 # User-facing documentation (see docs/README.md for index)
 ```
 
-## Build & Test
+> For deeper architecture details, see `docs/architecture.md`.
 
-```bash
-dotnet build
-dotnet test tests/IntuneMonitor.Tests/
-```
+### Dual-Mode Entry Point
 
-The project targets **net8.0**. Tests use **xUnit 2.5.3**.
+`Program.cs` checks `args.Length`:
+- **No arguments** → `InteractiveMenu` (Spectre.Console prompts, arrow-key navigation)
+- **With arguments** → `System.CommandLine` CLI routing
+
+Both paths share the same `AppConfiguration`, command classes, and logger factory.
 
 ## Coding Conventions
 
@@ -43,7 +60,7 @@ The project targets **net8.0**. Tests use **xUnit 2.5.3**.
 
 ### Namespaces
 
-Follow folder structure: `IntuneMonitor.{FolderName}` (e.g., `IntuneMonitor.Commands`, `IntuneMonitor.Graph`).
+Follow folder structure: `IntuneMonitor.{FolderName}` (e.g., `IntuneMonitor.Commands`, `IntuneMonitor.Graph`, `IntuneMonitor.UI`).
 
 ### File Organization
 
@@ -55,6 +72,20 @@ Follow folder structure: `IntuneMonitor.{FolderName}` (e.g., `IntuneMonitor.Comm
 ### Nullability
 
 Nullable reference types are enabled (`<Nullable>enable</Nullable>`). Respect nullable annotations on all new code.
+
+## Terminal UI (Spectre.Console)
+
+Rich terminal output uses `Spectre.Console` via the `IntuneMonitor.UI` namespace:
+
+- **`ConsoleUI`** — Static helpers: `WriteBanner()`, `WriteHeader()`, `WriteExportSummary()`, `WriteImportSummary()`, `WriteChangeReport()`, `WriteContentTypesTable()`, `StatusAsync()` (spinner), `Info()`, `Success()`, `Warning()`, `Error()`.
+- **`InteractiveMenu`** — Menu-driven loop with `SelectionPrompt`, `MultiSelectionPrompt`, `TextPrompt`, `Tree` for settings view.
+
+### Guidelines
+
+- Use `ConsoleUI.StatusAsync("message", async () => ...)` for any operation that takes time (auth, Graph calls, storage writes).
+- Use `Markup.Escape()` on all user-supplied or dynamic strings passed to Spectre markup.
+- Keep `ConsoleUI` methods alongside (not instead of) `ILogger` calls — the logger goes to structured log output, `ConsoleUI` goes to the styled terminal.
+- When adding new interactive workflows to `InteractiveMenu`, follow the existing pattern: prompt for options → run command → return to menu.
 
 ## Logging
 
@@ -77,16 +108,18 @@ _logger.LogError(ex, "Failed to import '{ItemName}'", itemName);
 - `ExportCommand`/`ImportCommand` return an item count and use `0` items on failure; `MonitorCommand` returns a `ChangeReport`. CLI process exit codes are generally `0` unless `System.CommandLine` reports a parse error (command return values are not propagated to exit codes).
 - All async methods accept and honor `CancellationToken`.
 
-## Authentication
+## Key Patterns
+
+### Authentication
 
 Two methods via `CredentialFactory`:
 
 1. **Client secret** → `ClientSecretCredential`
 2. **Certificate** (PFX/PEM file or Windows cert-store thumbprint) → `ClientCertificateCredential`
 
-Uses `Azure.Identity`—**not** the Microsoft Graph SDK.
+Uses `Azure.Identity` — **not** the Microsoft Graph SDK.
 
-## Storage
+### Storage
 
 `IBackupStorage` interface with two implementations:
 
@@ -95,7 +128,7 @@ Uses `Azure.Identity`—**not** the Microsoft Graph SDK.
 
 Created via `BackupStorageFactory.Create()`.
 
-## Configuration
+### Configuration
 
 Loaded in priority order (highest wins):
 
@@ -104,6 +137,16 @@ Loaded in priority order (highest wins):
 3. `appsettings.json`
 
 Config POCOs live in `Config/AppConfiguration.cs`. Never commit `appsettings.json` (it's in `.gitignore`).
+
+### Adding a New Content Type
+
+1. Add a constant to `IntuneContentTypes`
+2. Add entries to `GraphEndpoints`, `FileNames`, and `FolderNames` dictionaries
+3. That's it — export, import, and monitor will pick it up automatically
+
+### Graph API
+
+All Graph calls go through `HttpClient` to the **beta** endpoint (`https://graph.microsoft.com/beta/...`). Endpoints and content-type mappings are centralized in `IntuneContentTypes`.
 
 ## CLI Commands
 
@@ -127,14 +170,30 @@ Global options (tenant, client, auth, backup path, verbosity) are defined in `Pr
 
 ## Dependencies
 
-- `Azure.Identity` for Entra ID authentication
-- `Microsoft.Extensions.Configuration` (JSON + environment variable providers)
-- `Microsoft.Extensions.Logging` (console provider)
-- `System.CommandLine` for CLI parsing
-- No Microsoft Graph SDK—raw `HttpClient` calls to the Graph beta API
+| Package | Purpose |
+|---|---|
+| `Azure.Identity` | Entra ID authentication |
+| `Microsoft.Extensions.Configuration.*` | Config loading (JSON + env vars) |
+| `Microsoft.Extensions.Logging.*` | Structured logging (console provider) |
+| `Spectre.Console` | Rich terminal UI (tables, spinners, prompts, trees) |
+| `System.CommandLine` | CLI parsing |
+
+No Microsoft Graph SDK — raw `HttpClient` calls to the Graph beta API.
 
 When adding new packages, prefer packages from the `Microsoft.Extensions.*` or `Azure.*` namespaces to stay consistent with the existing stack.
 
-## Graph API
+## Documentation Layout
 
-All Graph calls go through `HttpClient` to the **beta** endpoint (`https://graph.microsoft.com/beta/...`). Endpoints and content-type mappings are centralized in `IntuneContentTypes`.
+The project has three documentation layers — each serves a different audience:
+
+| Layer | Path | Audience | Purpose |
+|---|---|---|---|
+| **README** | `README.md` | First-time visitors | Quick start, feature overview, links to docs |
+| **Docs** | `docs/` | Users & operators | Detailed guides for every feature, CI/CD, troubleshooting |
+| **Copilot** | `.github/copilot-instructions.md` | AI coding agents | Conventions, patterns, guardrails for code changes |
+
+When updating functionality:
+- **Feature change** → Update the relevant `docs/*.md` page and this file if code patterns change
+- **New command/option** → Update `docs/commands.md` and the commands table above
+- **New dependency** → Update the dependencies table above and `docs/architecture.md`
+- **README** should stay concise — link to docs for details, don't duplicate

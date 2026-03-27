@@ -247,7 +247,9 @@ See [Architecture](docs/architecture.md) for design details.
 
 ## Contributing
 
-Contributions are welcome! Feel free to open issues and pull requests.
+Contributions are welcome! See the [Contributing guide](docs/contributing.md) for setup, conventions, and PR guidelines.
+
+Coding conventions for the project (used by both humans and AI coding agents) are in [`.github/copilot-instructions.md`](.github/copilot-instructions.md).
 
 ---
 
