@@ -36,29 +36,51 @@ public class LocalFileStorage : IBackupStorage
         BackupDocument document,
         CancellationToken cancellationToken = default)
     {
-        Directory.CreateDirectory(_rootPath);
+        var folderName = GetFolderName(contentType);
+        var folderPath = Path.Combine(_rootPath, folderName);
+        Directory.CreateDirectory(folderPath);
 
-        if (!IntuneContentTypes.FileNames.TryGetValue(contentType, out var fileName))
-            fileName = $"{contentType.ToLowerInvariant()}.json";
+        // Remove files for items that no longer exist in the export
+        CleanRemovedItems(folderPath, document.Items);
 
-        var filePath = Path.Combine(_rootPath, fileName);
-        var json = JsonSerializer.Serialize(document, WriteOptions);
-        await File.WriteAllTextAsync(filePath, json, cancellationToken);
+        // Write each item as an individual file named after the policy
+        foreach (var item in document.Items)
+        {
+            var fileName = SanitizeFileName(item.Name ?? item.Id ?? "unknown") + ".json";
+            var filePath = Path.Combine(folderPath, fileName);
+            var json = JsonSerializer.Serialize(item, WriteOptions);
+            await File.WriteAllTextAsync(filePath, json, cancellationToken);
+        }
     }
 
     public async Task<BackupDocument?> LoadBackupAsync(
         string contentType,
         CancellationToken cancellationToken = default)
     {
-        if (!IntuneContentTypes.FileNames.TryGetValue(contentType, out var fileName))
-            fileName = $"{contentType.ToLowerInvariant()}.json";
+        var folderName = GetFolderName(contentType);
+        var folderPath = Path.Combine(_rootPath, folderName);
 
-        var filePath = Path.Combine(_rootPath, fileName);
-        if (!File.Exists(filePath))
+        if (!Directory.Exists(folderPath))
             return null;
 
-        var json = await File.ReadAllTextAsync(filePath, cancellationToken);
-        return JsonSerializer.Deserialize<BackupDocument>(json, ReadOptions);
+        var jsonFiles = Directory.GetFiles(folderPath, "*.json");
+        if (jsonFiles.Length == 0)
+            return null;
+
+        var items = new List<IntuneItem>();
+        foreach (var filePath in jsonFiles)
+        {
+            var json = await File.ReadAllTextAsync(filePath, cancellationToken);
+            var item = JsonSerializer.Deserialize<IntuneItem>(json, ReadOptions);
+            if (item != null)
+                items.Add(item);
+        }
+
+        return new BackupDocument
+        {
+            ContentType = contentType,
+            Items = items
+        };
     }
 
     public Task<IReadOnlyList<string>> ListStoredContentTypesAsync(
@@ -69,10 +91,10 @@ public class LocalFileStorage : IBackupStorage
         if (!Directory.Exists(_rootPath))
             return Task.FromResult<IReadOnlyList<string>>(stored);
 
-        foreach (var kvp in IntuneContentTypes.FileNames)
+        foreach (var kvp in IntuneContentTypes.FolderNames)
         {
-            var filePath = Path.Combine(_rootPath, kvp.Value);
-            if (File.Exists(filePath))
+            var folderPath = Path.Combine(_rootPath, kvp.Value);
+            if (Directory.Exists(folderPath) && Directory.GetFiles(folderPath, "*.json").Length > 0)
                 stored.Add(kvp.Key);
         }
 
@@ -83,5 +105,30 @@ public class LocalFileStorage : IBackupStorage
     {
         // No-op for local file storage
         return Task.CompletedTask;
+    }
+
+    private static string GetFolderName(string contentType) =>
+        IntuneContentTypes.FolderNames.TryGetValue(contentType, out var folder)
+            ? folder
+            : contentType;
+
+    private static string SanitizeFileName(string name)
+    {
+        var invalid = Path.GetInvalidFileNameChars();
+        var sanitized = new string(name.Select(c => invalid.Contains(c) ? '_' : c).ToArray());
+        return sanitized.Length > 200 ? sanitized[..200] : sanitized;
+    }
+
+    private static void CleanRemovedItems(string folderPath, List<IntuneItem> currentItems)
+    {
+        var expectedFiles = new HashSet<string>(
+            currentItems.Select(i => SanitizeFileName(i.Name ?? i.Id ?? "unknown") + ".json"),
+            StringComparer.OrdinalIgnoreCase);
+
+        foreach (var existingFile in Directory.GetFiles(folderPath, "*.json"))
+        {
+            if (!expectedFiles.Contains(Path.GetFileName(existingFile)))
+                File.Delete(existingFile);
+        }
     }
 }

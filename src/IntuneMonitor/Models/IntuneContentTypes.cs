@@ -61,6 +61,27 @@ public static class IntuneContentTypes
             { AssignmentFilter, "assignmentfilter.json" },
         };
 
+    /// <summary>
+    /// Maps each content type to the folder name used for per-item backup storage.
+    /// </summary>
+    public static readonly IReadOnlyDictionary<string, string> FolderNames =
+        new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            { SettingsCatalog, "SettingsCatalog" },
+            { DeviceCompliancePolicy, "DeviceCompliancePolicy" },
+            { DeviceConfigurationPolicy, "DeviceConfigurationPolicy" },
+            { WindowsDriverUpdate, "WindowsDriverUpdate" },
+            { WindowsFeatureUpdate, "WindowsFeatureUpdate" },
+            { WindowsQualityUpdateProfile, "WindowsQualityUpdateProfile" },
+            { WindowsQualityUpdatePolicy, "WindowsQualityUpdatePolicy" },
+            { PowerShellScript, "PowerShellScript" },
+            { ProactiveRemediation, "ProactiveRemediation" },
+            { MacOSShellScript, "MacOSShellScript" },
+            { WindowsAutoPilotProfile, "WindowsAutoPilotProfile" },
+            { AppleBYODEnrollmentProfile, "AppleBYODEnrollmentProfile" },
+            { AssignmentFilter, "AssignmentFilter" },
+        };
+
     /// <summary>All supported content type names.</summary>
     public static readonly IReadOnlyList<string> All = GraphEndpoints.Keys.ToList();
 }
