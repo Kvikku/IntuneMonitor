@@ -175,7 +175,7 @@ public class InteractiveMenu
 
     private List<string>? PromptContentTypes()
     {
-        var filterChoice = AnsiConsole.Confirm("Filter content types?", false);
+        var filterChoice = AnsiConsole.Confirm("Limit to specific content types? (No = all types)", false);
         if (!filterChoice)
             return null;
 
