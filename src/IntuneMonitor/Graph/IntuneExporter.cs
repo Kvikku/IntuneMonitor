@@ -13,6 +13,15 @@ public class IntuneExporter
     private readonly TokenCredential _credential;
     private readonly string[] _scopes = { "https://graph.microsoft.com/.default" };
 
+    /// <summary>Cache of group ID → display name to avoid redundant Graph lookups.</summary>
+    private readonly Dictionary<string, string> _groupNameCache = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>Content types that do not support an /assignments sub-resource.</summary>
+    private static readonly HashSet<string> NoAssignmentsTypes = new(StringComparer.OrdinalIgnoreCase)
+    {
+        IntuneContentTypes.AssignmentFilter
+    };
+
     public IntuneExporter(TokenCredential credential)
     {
         _credential = credential ?? throw new ArgumentNullException(nameof(credential));
@@ -84,6 +93,12 @@ public class IntuneExporter
                 else
                 {
                     fullData = item;
+                }
+
+                // Fetch and merge assignments with resolved group names
+                if (fullData != null && id != null && !NoAssignmentsTypes.Contains(contentType))
+                {
+                    fullData = await MergeAssignmentsAsync(httpClient, endpoint, id, fullData.Value, cancellationToken);
                 }
 
                 items.Add(new IntuneItem
@@ -238,6 +253,124 @@ public class IntuneExporter
         contentType.Equals(IntuneContentTypes.PowerShellScript, StringComparison.OrdinalIgnoreCase) ||
         contentType.Equals(IntuneContentTypes.ProactiveRemediation, StringComparison.OrdinalIgnoreCase) ||
         contentType.Equals(IntuneContentTypes.MacOSShellScript, StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// Fetches the /assignments sub-resource for a policy, resolves group IDs to
+    /// display names, and merges the enriched assignments into the policy JSON.
+    /// </summary>
+    private async Task<JsonElement?> MergeAssignmentsAsync(
+        HttpClient httpClient,
+        string endpoint,
+        string itemId,
+        JsonElement policyDetail,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var allAssignments = new List<JsonElement>();
+            string? url = $"https://graph.microsoft.com/beta/{endpoint}/{itemId}/assignments";
+
+            while (url != null)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                var response = await httpClient.GetAsync(url, cancellationToken);
+                if (!response.IsSuccessStatusCode)
+                    break;
+
+                var json = await response.Content.ReadAsStringAsync(cancellationToken);
+                var root = JsonSerializer.Deserialize<JsonElement>(json);
+
+                if (root.TryGetProperty("value", out var valueArray))
+                {
+                    foreach (var assignment in valueArray.EnumerateArray())
+                        allAssignments.Add(assignment);
+                }
+
+                url = root.TryGetProperty("@odata.nextLink", out var nextProp)
+                    ? nextProp.GetString()
+                    : null;
+            }
+
+            // Resolve group IDs to display names
+            var enriched = new List<object>();
+            foreach (var assignment in allAssignments)
+            {
+                var dict = JsonElementToDict(assignment);
+
+                if (assignment.TryGetProperty("target", out var target))
+                {
+                    var targetDict = JsonElementToDict(target);
+                    var groupId = GetStringProperty(target, "groupId");
+
+                    if (groupId != null)
+                    {
+                        var groupName = await ResolveGroupNameAsync(httpClient, groupId, cancellationToken);
+                        targetDict["groupDisplayName"] = groupName;
+                    }
+
+                    dict["target"] = targetDict;
+                }
+
+                enriched.Add(dict);
+            }
+
+            // Merge into policy data
+            var policyDict = new Dictionary<string, object?>();
+            foreach (var prop in policyDetail.EnumerateObject())
+                policyDict[prop.Name] = prop.Value;
+
+            policyDict["assignments"] = enriched;
+
+            var merged = JsonSerializer.Serialize(policyDict);
+            return JsonSerializer.Deserialize<JsonElement>(merged);
+        }
+        catch
+        {
+            return policyDetail;
+        }
+    }
+
+    /// <summary>
+    /// Resolves a group ID to its display name, with caching.
+    /// </summary>
+    private async Task<string> ResolveGroupNameAsync(
+        HttpClient httpClient,
+        string groupId,
+        CancellationToken cancellationToken)
+    {
+        if (_groupNameCache.TryGetValue(groupId, out var cached))
+            return cached;
+
+        try
+        {
+            var url = $"https://graph.microsoft.com/v1.0/groups/{groupId}?$select=displayName";
+            var response = await httpClient.GetAsync(url, cancellationToken);
+
+            if (response.IsSuccessStatusCode)
+            {
+                var json = await response.Content.ReadAsStringAsync(cancellationToken);
+                var group = JsonSerializer.Deserialize<JsonElement>(json);
+                var name = GetStringProperty(group, "displayName") ?? groupId;
+                _groupNameCache[groupId] = name;
+                return name;
+            }
+        }
+        catch
+        {
+            // Fall through to return the raw ID
+        }
+
+        _groupNameCache[groupId] = groupId;
+        return groupId;
+    }
+
+    private static Dictionary<string, object?> JsonElementToDict(JsonElement element)
+    {
+        var dict = new Dictionary<string, object?>();
+        foreach (var prop in element.EnumerateObject())
+            dict[prop.Name] = prop.Value;
+        return dict;
+    }
 
     private static string? GetStringProperty(JsonElement el, string name) =>
         el.TryGetProperty(name, out var prop) && prop.ValueKind == JsonValueKind.String
