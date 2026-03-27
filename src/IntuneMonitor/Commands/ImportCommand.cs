@@ -4,6 +4,7 @@ using IntuneMonitor.Config;
 using IntuneMonitor.Graph;
 using IntuneMonitor.Models;
 using IntuneMonitor.Storage;
+using IntuneMonitor.UI;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 
@@ -33,16 +34,25 @@ public class ImportCommand
         bool dryRun = false,
         CancellationToken cancellationToken = default)
     {
+        ConsoleUI.WriteHeader("Intune Import");
         _logger.LogInformation("=== Intune Import ===");
 
         if (dryRun)
+        {
+            ConsoleUI.Warning("DRY RUN — no changes will be made to the tenant");
             _logger.LogInformation("[DRY RUN] No changes will be made to the tenant");
+        }
 
         // Authenticate
         TokenCredential credential;
         try
         {
-            credential = CredentialFactory.Create(_config.Authentication);
+            credential = await ConsoleUI.StatusAsync("Authenticating...", async () =>
+            {
+                await Task.CompletedTask;
+                return CredentialFactory.Create(_config.Authentication);
+            });
+            ConsoleUI.Success($"Authenticated (method: {_config.Authentication.Method})");
             _logger.LogInformation("Authentication configured (method: {AuthMethod})", _config.Authentication.Method);
         }
         catch (Exception ex)
@@ -113,6 +123,7 @@ public class ImportCommand
         }
 
         _logger.LogInformation("Import complete. {SuccessCount} succeeded, {ErrorCount} failed", successCount, errorCount);
+        ConsoleUI.WriteImportSummary(successCount, errorCount);
         return successCount;
     }
 
