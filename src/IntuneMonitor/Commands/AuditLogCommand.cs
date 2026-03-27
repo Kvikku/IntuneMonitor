@@ -207,6 +207,13 @@ public class AuditLogCommand
         {
             await HtmlAuditReportGenerator.WriteAsync(report, outputPath, cancellationToken);
             _logger.LogInformation("HTML report written to: {OutputPath}", outputPath);
+
+            var fullPath = Path.GetFullPath(outputPath);
+            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+            {
+                FileName = fullPath,
+                UseShellExecute = true
+            });
         }
         catch (Exception ex)
         {
