@@ -9,6 +9,17 @@
     <Nullable>enable</Nullable>
     <AllowUnsafeBlocks>false</AllowUnsafeBlocks>
     <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+
+    <!-- Versioning: set via CI using -p:Version=x.y.z, defaults to 1.0.0 for local builds -->
+    <Version>1.0.0</Version>
+    <AssemblyVersion>1.0.0.0</AssemblyVersion>
+    <FileVersion>1.0.0.0</FileVersion>
+
+    <!-- Package metadata -->
+    <Authors>Kvikku</Authors>
+    <Description>CLI tool for backing up, restoring, and drift-detecting Microsoft Intune configurations.</Description>
+    <RepositoryUrl>https://github.com/Kvikku/IntuneMonitor</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
   </PropertyGroup>
 
   <ItemGroup>

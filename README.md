@@ -5,6 +5,7 @@
 **Back up, restore, and drift-detect your Microsoft Intune environment — from the terminal.**
 
 [![.NET 8](https://img.shields.io/badge/.NET-8.0-512BD4?logo=dotnet&logoColor=white)](https://dotnet.microsoft.com/download/dotnet/8.0)
+[![CI](https://github.com/Kvikku/IntuneMonitor/actions/workflows/ci.yml/badge.svg)](https://github.com/Kvikku/IntuneMonitor/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey)]()
 [![Microsoft Graph](https://img.shields.io/badge/Microsoft%20Graph-beta-0078D4?logo=microsoft&logoColor=white)](https://learn.microsoft.com/en-us/graph/overview)

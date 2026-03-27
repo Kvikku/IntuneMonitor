@@ -43,6 +43,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Extract version from tag
+        id: version
+        shell: bash
+        run: echo "VERSION=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
@@ -55,11 +60,36 @@ jobs:
           -r ${{ matrix.rid }}
           --self-contained true
           -p:PublishSingleFile=true
+          -p:Version=${{ steps.version.outputs.VERSION }}
           -o publish/${{ matrix.rid }}
+
+      - name: Create zip archive
+        shell: bash
+        run: |
+          cd publish/${{ matrix.rid }}
+          zip -r ../../IntuneMonitor-${{ matrix.rid }}.zip .
 
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
         with:
           name: IntuneMonitor-${{ matrix.rid }}
-          path: publish/${{ matrix.rid }}
+          path: IntuneMonitor-${{ matrix.rid }}.zip
           retention-days: 90
+
+  release:
+    needs: publish
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          files: artifacts/*.zip
