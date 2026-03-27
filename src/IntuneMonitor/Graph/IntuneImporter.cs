@@ -10,19 +10,7 @@ namespace IntuneMonitor.Graph;
 /// </summary>
 public class IntuneImporter
 {
-    private static readonly JsonSerializerOptions SerializerOptions = new()
-    {
-        WriteIndented = true,
-        PropertyNamingPolicy = JsonNamingPolicy.CamelCase
-    };
-
-    private static readonly JsonSerializerOptions ImportDeserializeOptions = new()
-    {
-        PropertyNameCaseInsensitive = true
-    };
-
     private readonly TokenCredential _credential;
-    private readonly string[] _scopes = { "https://graph.microsoft.com/.default" };
 
     public IntuneImporter(TokenCredential credential)
     {
@@ -47,13 +35,9 @@ public class IntuneImporter
         var payload = PrepareImportPayload(item.PolicyData.Value);
 
         var url = $"https://graph.microsoft.com/beta/{endpoint}";
-        var token = await GetAccessTokenAsync(cancellationToken);
+        var token = await GraphClientFactory.GetAccessTokenAsync(_credential, cancellationToken);
 
-        using var httpClient = new HttpClient();
-        httpClient.DefaultRequestHeaders.Authorization =
-            new AuthenticationHeaderValue("Bearer", token);
-        httpClient.DefaultRequestHeaders.Accept.Add(
-            new MediaTypeWithQualityHeaderValue("application/json"));
+        using var httpClient = GraphClientFactory.CreateHttpClient(token);
 
         var content = new StringContent(
             JsonSerializer.Serialize(payload),
@@ -111,11 +95,4 @@ public class IntuneImporter
             JsonValueKind.False => false,
             _ => null
         };
-
-    private async Task<string> GetAccessTokenAsync(CancellationToken cancellationToken)
-    {
-        var tokenRequestContext = new TokenRequestContext(_scopes);
-        var token = await _credential.GetTokenAsync(tokenRequestContext, cancellationToken);
-        return token.Token;
-    }
 }

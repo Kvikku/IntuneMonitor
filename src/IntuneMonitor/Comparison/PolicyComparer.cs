@@ -1,4 +1,5 @@
 using System.Text.Json;
+using IntuneMonitor.Graph;
 using IntuneMonitor.Models;
 
 namespace IntuneMonitor.Comparison;
@@ -9,10 +10,6 @@ namespace IntuneMonitor.Comparison;
 /// </summary>
 public class PolicyComparer
 {
-    private static readonly JsonSerializerOptions JsonOptions = new()
-    {
-        WriteIndented = false
-    };
 
     /// <summary>
     /// Compares the current (live) items against the backup for a single content type.
@@ -319,8 +316,8 @@ public class PolicyComparer
         {
             if (backupById.TryGetValue(key, out var backupItem))
             {
-                var liveJson = JsonSerializer.Serialize(liveItem, JsonOptions);
-                var backupJson = JsonSerializer.Serialize(backupItem, JsonOptions);
+                var liveJson = JsonSerializer.Serialize(liveItem, JsonDefaults.Compact);
+                var backupJson = JsonSerializer.Serialize(backupItem, JsonDefaults.Compact);
                 if (!string.Equals(liveJson, backupJson, StringComparison.Ordinal))
                 {
                     changes.Add(new FieldChange
@@ -412,6 +409,6 @@ public class PolicyComparer
         if (element == null) return null;
         return element.Value.ValueKind == JsonValueKind.String
             ? element.Value.GetString()
-            : JsonSerializer.Serialize(element.Value, JsonOptions);
+            : JsonSerializer.Serialize(element.Value, JsonDefaults.Compact);
     }
 }

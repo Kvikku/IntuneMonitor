@@ -19,12 +19,6 @@ namespace IntuneMonitor.Commands;
 /// </summary>
 public class MonitorCommand
 {
-    private static readonly JsonSerializerOptions ReportWriteOptions = new()
-    {
-        WriteIndented = true,
-        PropertyNamingPolicy = JsonNamingPolicy.CamelCase
-    };
-
     private readonly AppConfiguration _config;
     private readonly ILogger<MonitorCommand> _logger;
     private readonly ILoggerFactory _loggerFactory;
@@ -51,11 +45,8 @@ public class MonitorCommand
         TokenCredential credential;
         try
         {
-            credential = await ConsoleUI.StatusAsync("Authenticating...", async () =>
-            {
-                await Task.CompletedTask;
-                return CredentialFactory.Create(_config.Authentication);
-            });
+            credential = await ConsoleUI.StatusAsync("Authenticating...",
+                () => Task.FromResult(CredentialFactory.Create(_config.Authentication)));
         }
         catch (Exception ex)
         {
@@ -64,7 +55,7 @@ public class MonitorCommand
         }
 
         // Determine content types
-        var types = ResolveContentTypes(contentTypes);
+        var types = ContentTypeResolver.Resolve(contentTypes, _config.ContentTypes);
 
         // Load storage
         IBackupStorage storage;
@@ -79,7 +70,7 @@ public class MonitorCommand
         }
 
         // Fetch current state from Graph
-        var exporter = new IntuneExporter(credential);
+        var exporter = new IntuneExporter(credential, _loggerFactory);
         var progress = new Progress<string>(msg => _logger.LogDebug("{ProgressMessage}", msg));
 
         Dictionary<string, List<IntuneItem>> liveData;
@@ -244,21 +235,7 @@ public class MonitorCommand
             return;
 
         outputPath = Reporting.ReportPath.WithTimestamp(outputPath, timestamp);
-
-        try
-        {
-            var dir = Path.GetDirectoryName(outputPath);
-            if (!string.IsNullOrWhiteSpace(dir))
-                Directory.CreateDirectory(dir);
-
-            var json = JsonSerializer.Serialize(report, ReportWriteOptions);
-            await File.WriteAllTextAsync(outputPath, json, cancellationToken);
-            _logger.LogInformation("Report written to: {OutputPath}", outputPath);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Failed to write report to '{OutputPath}'", outputPath);
-        }
+        await ReportWriter.WriteJsonAsync(report, outputPath, _logger, cancellationToken);
     }
 
     private async Task WriteHtmlReportAsync(ChangeReport report, string timestamp, CancellationToken cancellationToken)
@@ -275,33 +252,12 @@ public class MonitorCommand
             _logger.LogInformation("HTML report written to: {OutputPath}", outputPath);
 
             if (_config.Monitor.OpenHtmlReport)
-            {
-                var fullPath = Path.GetFullPath(outputPath);
-                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
-                {
-                    FileName = fullPath,
-                    UseShellExecute = true
-                });
-            }
+                ReportWriter.OpenInBrowser(outputPath, _logger);
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to write HTML report to '{OutputPath}'", outputPath);
         }
-    }
-
-    private List<string> ResolveContentTypes(IEnumerable<string>? specified)
-    {
-        if (specified != null)
-        {
-            var list = specified.ToList();
-            if (list.Count > 0) return list;
-        }
-
-        if (_config.ContentTypes?.Count > 0)
-            return _config.ContentTypes;
-
-        return IntuneContentTypes.All.ToList();
     }
 
     private static ChangeReport EmptyReport() =>

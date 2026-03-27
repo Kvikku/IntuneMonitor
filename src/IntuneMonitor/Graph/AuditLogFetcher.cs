@@ -15,7 +15,6 @@ namespace IntuneMonitor.Graph;
 public class AuditLogFetcher
 {
     private readonly TokenCredential _credential;
-    private readonly string[] _scopes = { "https://graph.microsoft.com/.default" };
     private readonly ILogger<AuditLogFetcher> _logger;
 
     /// <summary>Maximum number of events per page to request from Graph.</summary>
@@ -52,8 +51,8 @@ public class AuditLogFetcher
         if (days < 1 || days > 30)
             throw new ArgumentOutOfRangeException(nameof(days), days, "Days must be between 1 and 30.");
 
-        var token = await GetAccessTokenAsync(cancellationToken);
-        using var httpClient = CreateHttpClient(token);
+        var token = await GraphClientFactory.GetAccessTokenAsync(_credential, cancellationToken);
+        using var httpClient = GraphClientFactory.CreateHttpClient(token);
 
         var since = DateTime.UtcNow.AddDays(-days).ToString("yyyy-MM-ddTHH:mm:ssZ");
         var filter = Uri.EscapeDataString($"activityDateTime ge {since}");
@@ -173,20 +172,20 @@ public class AuditLogFetcher
         {
             return new AuditEvent
             {
-                Id = GetString(item, "id"),
-                DisplayName = GetString(item, "displayName"),
-                ComponentName = GetString(item, "componentName"),
-                Activity = GetString(item, "activity"),
-                ActivityType = GetString(item, "activityType"),
-                ActivityResult = GetString(item, "activityResult"),
-                ActivityDateTime = TryParseDateTime(item, "activityDateTime") ?? DateTime.MinValue,
+                Id = JsonElementHelpers.GetStringOrEmpty(item, "id"),
+                DisplayName = JsonElementHelpers.GetStringOrEmpty(item, "displayName"),
+                ComponentName = JsonElementHelpers.GetStringOrEmpty(item, "componentName"),
+                Activity = JsonElementHelpers.GetStringOrEmpty(item, "activity"),
+                ActivityType = JsonElementHelpers.GetStringOrEmpty(item, "activityType"),
+                ActivityResult = JsonElementHelpers.GetStringOrEmpty(item, "activityResult"),
+                ActivityDateTime = JsonElementHelpers.TryParseDateTime(item, "activityDateTime") ?? DateTime.MinValue,
                 Actor = ParseActor(item),
                 Resources = ParseResources(item)
             };
         }
         catch (Exception ex)
         {
-            var eventId = GetString(item, "id");
+            var eventId = JsonElementHelpers.GetStringOrEmpty(item, "id");
             _logger.LogWarning(ex, "Failed to parse audit event (id: {EventId})", eventId);
             return null;
         }
@@ -199,9 +198,9 @@ public class AuditLogFetcher
 
         return new AuditActor
         {
-            ApplicationDisplayName = GetString(actor, "applicationDisplayName"),
-            UserPrincipalName = GetString(actor, "userPrincipalName"),
-            IpAddress = GetString(actor, "ipAddress")
+            ApplicationDisplayName = JsonElementHelpers.GetStringOrEmpty(actor, "applicationDisplayName"),
+            UserPrincipalName = JsonElementHelpers.GetStringOrEmpty(actor, "userPrincipalName"),
+            IpAddress = JsonElementHelpers.GetStringOrEmpty(actor, "ipAddress")
         };
     }
 
@@ -216,8 +215,8 @@ public class AuditLogFetcher
         {
             resources.Add(new AuditResource
             {
-                DisplayName = GetString(resource, "displayName"),
-                ResourceType = GetString(resource, "type")
+                DisplayName = JsonElementHelpers.GetStringOrEmpty(resource, "displayName"),
+                ResourceType = JsonElementHelpers.GetStringOrEmpty(resource, "type")
             });
         }
         return resources;
@@ -236,33 +235,4 @@ public class AuditLogFetcher
 
         return DefaultRetryDelaySeconds;
     }
-
-    private async Task<string> GetAccessTokenAsync(CancellationToken cancellationToken)
-    {
-        var tokenRequestContext = new TokenRequestContext(_scopes);
-        var token = await _credential.GetTokenAsync(tokenRequestContext, cancellationToken);
-        return token.Token;
-    }
-
-    private static HttpClient CreateHttpClient(string bearerToken)
-    {
-        var client = new HttpClient();
-        client.DefaultRequestHeaders.Authorization =
-            new AuthenticationHeaderValue("Bearer", bearerToken);
-        client.DefaultRequestHeaders.Accept.Add(
-            new MediaTypeWithQualityHeaderValue("application/json"));
-        return client;
-    }
-
-    private static string GetString(JsonElement el, string name) =>
-        el.TryGetProperty(name, out var prop) && prop.ValueKind == JsonValueKind.String
-            ? prop.GetString() ?? string.Empty
-            : string.Empty;
-
-    private static DateTime? TryParseDateTime(JsonElement el, string name) =>
-        el.TryGetProperty(name, out var prop)
-        && prop.ValueKind == JsonValueKind.String
-        && DateTime.TryParse(prop.GetString(), out var dt)
-            ? dt
-            : null;
 }

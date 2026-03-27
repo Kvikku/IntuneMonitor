@@ -15,12 +15,6 @@ namespace IntuneMonitor.Commands;
 /// </summary>
 public class AuditLogCommand
 {
-    private static readonly JsonSerializerOptions ReportWriteOptions = new()
-    {
-        WriteIndented = true,
-        PropertyNamingPolicy = JsonNamingPolicy.CamelCase
-    };
-
     private readonly AppConfiguration _config;
     private readonly ILogger<AuditLogCommand> _logger;
     private readonly ILoggerFactory _loggerFactory;
@@ -182,20 +176,7 @@ public class AuditLogCommand
         if (string.IsNullOrWhiteSpace(outputPath))
             return;
 
-        try
-        {
-            var dir = Path.GetDirectoryName(outputPath);
-            if (!string.IsNullOrWhiteSpace(dir))
-                Directory.CreateDirectory(dir);
-
-            var json = JsonSerializer.Serialize(report, ReportWriteOptions);
-            await File.WriteAllTextAsync(outputPath, json, cancellationToken);
-            _logger.LogInformation("JSON report written to: {OutputPath}", outputPath);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Failed to write JSON report to '{OutputPath}'", outputPath);
-        }
+        await ReportWriter.WriteJsonAsync(report, outputPath, _logger, cancellationToken);
     }
 
     private async Task WriteHtmlReportAsync(AuditLogReport report, string? outputPath, CancellationToken cancellationToken)
@@ -208,12 +189,7 @@ public class AuditLogCommand
             await HtmlAuditReportGenerator.WriteAsync(report, outputPath, cancellationToken);
             _logger.LogInformation("HTML report written to: {OutputPath}", outputPath);
 
-            var fullPath = Path.GetFullPath(outputPath);
-            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
-            {
-                FileName = fullPath,
-                UseShellExecute = true
-            });
+            ReportWriter.OpenInBrowser(outputPath, _logger);
         }
         catch (Exception ex)
         {
