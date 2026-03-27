@@ -151,7 +151,7 @@ public static class HtmlAuditReportGenerator
         HttpUtility.HtmlEncode(value ?? "(null)");
 
     private static string Truncate(string? value, int maxLength) =>
-        value == null ? "(null)" :
+        string.IsNullOrEmpty(value) ? string.Empty :
         value.Length <= maxLength ? value :
         value[..maxLength] + "…";
 }

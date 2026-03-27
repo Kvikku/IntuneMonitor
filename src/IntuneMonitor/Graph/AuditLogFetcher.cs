@@ -27,6 +27,9 @@ public class AuditLogFetcher
     /// <summary>Maximum number of retries for transient/throttle failures per request.</summary>
     private const int MaxRetries = 5;
 
+    /// <summary>Base delay in seconds for exponential backoff on server errors.</summary>
+    private const int BaseBackoffSeconds = 5;
+
     /// <summary>Small delay between page requests to reduce throttling risk.</summary>
     private static readonly TimeSpan PageRequestDelay = TimeSpan.FromMilliseconds(500);
 
@@ -138,7 +141,7 @@ public class AuditLogFetcher
 
             if ((int)response.StatusCode >= 500 && attempt < MaxRetries)
             {
-                var delay = (int)Math.Pow(2, attempt) * 5;
+                var delay = (int)Math.Pow(2, attempt) * BaseBackoffSeconds;
                 _logger.LogWarning("Server error (HTTP {StatusCode}). Retrying in {Delay}s (attempt {Attempt}/{MaxRetries})",
                     (int)response.StatusCode, delay, attempt + 1, MaxRetries);
                 await Task.Delay(TimeSpan.FromSeconds(delay), cancellationToken);
