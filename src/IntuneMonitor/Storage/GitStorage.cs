@@ -54,7 +54,7 @@ public class GitStorage : IBackupStorage
         // Write each item as an individual file named after the policy
         foreach (var item in document.Items)
         {
-            var fileName = SanitizeFileName(item.Name ?? item.Id ?? "unknown") + ".json";
+            var fileName = BuildFileName(item);
             var filePath = Path.Combine(folderPath, fileName);
             var json = JsonSerializer.Serialize(item, WriteOptions);
             await File.WriteAllTextAsync(filePath, json, cancellationToken);
@@ -238,6 +238,13 @@ public class GitStorage : IBackupStorage
             ? folder
             : contentType;
 
+    private static string BuildFileName(IntuneItem item)
+    {
+        var name = SanitizeFileName(item.Name ?? item.Id ?? "unknown");
+        var shortId = (item.Id ?? "noid").Split('-')[0];
+        return $"{name}_{shortId}.json";
+    }
+
     private static string SanitizeFileName(string name)
     {
         var invalid = Path.GetInvalidFileNameChars();
@@ -248,7 +255,7 @@ public class GitStorage : IBackupStorage
     private static void CleanRemovedItems(string folderPath, List<IntuneItem> currentItems)
     {
         var expectedFiles = new HashSet<string>(
-            currentItems.Select(i => SanitizeFileName(i.Name ?? i.Id ?? "unknown") + ".json"),
+            currentItems.Select(i => BuildFileName(i)),
             StringComparer.OrdinalIgnoreCase);
 
         foreach (var existingFile in Directory.GetFiles(folderPath, "*.json"))

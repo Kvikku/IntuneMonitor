@@ -52,7 +52,7 @@ public class LocalFileStorage : IBackupStorage
         CancellationToken cancellationToken = default)
     {
         // Create a timestamped run folder on first save
-        _currentRunPath ??= Path.Combine(_rootPath, DateTime.UtcNow.ToString(TimestampFormat));
+        _currentRunPath ??= Path.Combine(_rootPath, DateTime.Now.ToString(TimestampFormat));
 
         var folderName = GetFolderName(contentType);
         var folderPath = Path.Combine(_currentRunPath, folderName);
@@ -61,7 +61,7 @@ public class LocalFileStorage : IBackupStorage
         // Write each item as an individual file named after the policy
         foreach (var item in document.Items)
         {
-            var fileName = SanitizeFileName(item.Name ?? item.Id ?? "unknown") + ".json";
+            var fileName = BuildFileName(item);
             var filePath = Path.Combine(folderPath, fileName);
             var json = JsonSerializer.Serialize(item, WriteOptions);
             await File.WriteAllTextAsync(filePath, json, cancellationToken);
@@ -148,6 +148,13 @@ public class LocalFileStorage : IBackupStorage
         IntuneContentTypes.FolderNames.TryGetValue(contentType, out var folder)
             ? folder
             : contentType;
+
+    private static string BuildFileName(IntuneItem item)
+    {
+        var name = SanitizeFileName(item.Name ?? item.Id ?? "unknown");
+        var shortId = (item.Id ?? "noid").Split('-')[0];
+        return $"{name}_{shortId}.json";
+    }
 
     private static string SanitizeFileName(string name)
     {
