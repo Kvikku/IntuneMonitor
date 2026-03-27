@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text.Json;
 using IntuneMonitor.Config;
 using IntuneMonitor.Models;
@@ -6,6 +7,7 @@ namespace IntuneMonitor.Storage;
 
 /// <summary>
 /// Stores and loads Intune backups as JSON files on the local file system.
+/// Each export run creates a timestamped folder containing per-type subfolders.
 /// </summary>
 public class LocalFileStorage : IBackupStorage
 {
@@ -20,7 +22,15 @@ public class LocalFileStorage : IBackupStorage
         PropertyNameCaseInsensitive = true
     };
 
+    private const string TimestampFormat = "yyyy-MM-dd_HHmmss";
+
     private readonly string _rootPath;
+
+    /// <summary>
+    /// The timestamped folder used for the current export run.
+    /// Created lazily on the first SaveBackupAsync call.
+    /// </summary>
+    private string? _currentRunPath;
 
     public LocalFileStorage(BackupConfig config)
     {
@@ -36,12 +46,12 @@ public class LocalFileStorage : IBackupStorage
         BackupDocument document,
         CancellationToken cancellationToken = default)
     {
-        var folderName = GetFolderName(contentType);
-        var folderPath = Path.Combine(_rootPath, folderName);
-        Directory.CreateDirectory(folderPath);
+        // Create a timestamped run folder on first save
+        _currentRunPath ??= Path.Combine(_rootPath, DateTime.UtcNow.ToString(TimestampFormat));
 
-        // Remove files for items that no longer exist in the export
-        CleanRemovedItems(folderPath, document.Items);
+        var folderName = GetFolderName(contentType);
+        var folderPath = Path.Combine(_currentRunPath, folderName);
+        Directory.CreateDirectory(folderPath);
 
         // Write each item as an individual file named after the policy
         foreach (var item in document.Items)
@@ -57,8 +67,12 @@ public class LocalFileStorage : IBackupStorage
         string contentType,
         CancellationToken cancellationToken = default)
     {
+        var latestRun = GetLatestRunPath();
+        if (latestRun == null)
+            return null;
+
         var folderName = GetFolderName(contentType);
-        var folderPath = Path.Combine(_rootPath, folderName);
+        var folderPath = Path.Combine(latestRun, folderName);
 
         if (!Directory.Exists(folderPath))
             return null;
@@ -88,12 +102,13 @@ public class LocalFileStorage : IBackupStorage
     {
         var stored = new List<string>();
 
-        if (!Directory.Exists(_rootPath))
+        var latestRun = GetLatestRunPath();
+        if (latestRun == null)
             return Task.FromResult<IReadOnlyList<string>>(stored);
 
         foreach (var kvp in IntuneContentTypes.FolderNames)
         {
-            var folderPath = Path.Combine(_rootPath, kvp.Value);
+            var folderPath = Path.Combine(latestRun, kvp.Value);
             if (Directory.Exists(folderPath) && Directory.GetFiles(folderPath, "*.json").Length > 0)
                 stored.Add(kvp.Key);
         }
@@ -103,8 +118,25 @@ public class LocalFileStorage : IBackupStorage
 
     public Task FinalizeExportAsync(string commitMessage, CancellationToken cancellationToken = default)
     {
-        // No-op for local file storage
+        if (_currentRunPath != null)
+            Console.WriteLine($"Backup saved to: {_currentRunPath}");
         return Task.CompletedTask;
+    }
+
+    /// <summary>
+    /// Finds the most recent timestamped run folder.
+    /// </summary>
+    private string? GetLatestRunPath()
+    {
+        if (!Directory.Exists(_rootPath))
+            return null;
+
+        return Directory.GetDirectories(_rootPath)
+            .Where(d => DateTime.TryParseExact(
+                Path.GetFileName(d), TimestampFormat, CultureInfo.InvariantCulture,
+                DateTimeStyles.None, out _))
+            .OrderByDescending(d => Path.GetFileName(d))
+            .FirstOrDefault();
     }
 
     private static string GetFolderName(string contentType) =>
@@ -117,18 +149,5 @@ public class LocalFileStorage : IBackupStorage
         var invalid = Path.GetInvalidFileNameChars();
         var sanitized = new string(name.Select(c => invalid.Contains(c) ? '_' : c).ToArray());
         return sanitized.Length > 200 ? sanitized[..200] : sanitized;
-    }
-
-    private static void CleanRemovedItems(string folderPath, List<IntuneItem> currentItems)
-    {
-        var expectedFiles = new HashSet<string>(
-            currentItems.Select(i => SanitizeFileName(i.Name ?? i.Id ?? "unknown") + ".json"),
-            StringComparer.OrdinalIgnoreCase);
-
-        foreach (var existingFile in Directory.GetFiles(folderPath, "*.json"))
-        {
-            if (!expectedFiles.Contains(Path.GetFileName(existingFile)))
-                File.Delete(existingFile);
-        }
     }
 }
