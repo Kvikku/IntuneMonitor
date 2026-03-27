@@ -2,6 +2,7 @@ using IntuneMonitor.Commands;
 using IntuneMonitor.Config;
 using IntuneMonitor.Models;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 using System.CommandLine;
 
 // ---------------------------------------------------------------------------
@@ -42,6 +43,10 @@ var contentTypesOption = new Option<string[]>(
     () => Array.Empty<string>(),
     $"Content types to process. Available: {string.Join(", ", IntuneContentTypes.All)}")
     { AllowMultipleArgumentsPerToken = false };
+var verbosityOption = new Option<LogLevel>(
+    "--verbosity",
+    () => LogLevel.Information,
+    "Set the logging verbosity level (Trace, Debug, Information, Warning, Error, Critical, None)");
 
 rootCommand.AddGlobalOption(tenantIdOption);
 rootCommand.AddGlobalOption(clientIdOption);
@@ -51,6 +56,7 @@ rootCommand.AddGlobalOption(certPasswordOption);
 rootCommand.AddGlobalOption(certThumbprintOption);
 rootCommand.AddGlobalOption(backupPathOption);
 rootCommand.AddGlobalOption(contentTypesOption);
+rootCommand.AddGlobalOption(verbosityOption);
 
 // ---------------------------------------------------------------------------
 // export command
@@ -65,8 +71,11 @@ exportCommand.SetHandler(async (context) =>
         tenantIdOption, clientIdOption, clientSecretOption,
         certPathOption, certPasswordOption, certThumbprintOption, backupPathOption);
 
+    var logLevel = context.ParseResult.GetValueForOption(verbosityOption);
+    using var loggerFactory = CreateLoggerFactory(logLevel);
+
     var types = context.ParseResult.GetValueForOption(contentTypesOption);
-    var cmd = new ExportCommand(appConfig);
+    var cmd = new ExportCommand(appConfig, loggerFactory);
     await cmd.RunAsync(types?.Length > 0 ? types : null);
 });
 
@@ -86,9 +95,12 @@ importCommand.SetHandler(async (context) =>
         tenantIdOption, clientIdOption, clientSecretOption,
         certPathOption, certPasswordOption, certThumbprintOption, backupPathOption);
 
+    var logLevel = context.ParseResult.GetValueForOption(verbosityOption);
+    using var loggerFactory = CreateLoggerFactory(logLevel);
+
     var types = context.ParseResult.GetValueForOption(contentTypesOption);
     var dryRun = context.ParseResult.GetValueForOption(dryRunOption);
-    var cmd = new ImportCommand(appConfig);
+    var cmd = new ImportCommand(appConfig, loggerFactory);
     await cmd.RunAsync(types?.Length > 0 ? types : null, dryRun);
 });
 
@@ -126,6 +138,9 @@ monitorCommand.SetHandler(async (context) =>
     if (context.ParseResult.GetValueForOption(changesOnlyOption))
         appConfig.Monitor.ChangesOnly = true;
 
+    var logLevel = context.ParseResult.GetValueForOption(verbosityOption);
+    using var loggerFactory = CreateLoggerFactory(logLevel);
+
     var types = context.ParseResult.GetValueForOption(contentTypesOption);
 
     using var cts = new CancellationTokenSource();
@@ -135,7 +150,7 @@ monitorCommand.SetHandler(async (context) =>
         cts.Cancel();
     };
 
-    var cmd = new MonitorCommand(appConfig);
+    var cmd = new MonitorCommand(appConfig, loggerFactory);
     await cmd.RunScheduledAsync(types?.Length > 0 ? types : null, cts.Token);
 });
 
@@ -157,8 +172,22 @@ listTypesCommand.SetHandler(() =>
 return await rootCommand.InvokeAsync(args);
 
 // ---------------------------------------------------------------------------
-// Local helper
+// Local helpers
 // ---------------------------------------------------------------------------
+static ILoggerFactory CreateLoggerFactory(LogLevel minLevel)
+{
+    return LoggerFactory.Create(builder =>
+    {
+        builder
+            .SetMinimumLevel(minLevel)
+            .AddSimpleConsole(options =>
+            {
+                options.SingleLine = true;
+                options.TimestampFormat = "yyyy-MM-dd HH:mm:ss ";
+            });
+    });
+}
+
 static void ApplyGlobalOverrides(
     AppConfiguration config,
     System.CommandLine.Parsing.ParseResult result,

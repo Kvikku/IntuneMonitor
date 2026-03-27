@@ -2,6 +2,8 @@ using System.Globalization;
 using System.Text.Json;
 using IntuneMonitor.Config;
 using IntuneMonitor.Models;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace IntuneMonitor.Storage;
 
@@ -25,6 +27,7 @@ public class LocalFileStorage : IBackupStorage
     private const string TimestampFormat = "yyyy-MM-dd_HHmmss";
 
     private readonly string _rootPath;
+    private readonly ILogger<LocalFileStorage> _logger;
 
     /// <summary>
     /// The timestamped folder used for the current export run.
@@ -32,13 +35,15 @@ public class LocalFileStorage : IBackupStorage
     /// </summary>
     private string? _currentRunPath;
 
-    public LocalFileStorage(BackupConfig config)
+    public LocalFileStorage(BackupConfig config, ILogger<LocalFileStorage>? logger = null)
     {
         if (config == null) throw new ArgumentNullException(nameof(config));
 
         _rootPath = string.IsNullOrWhiteSpace(config.SubDirectory)
             ? config.Path
             : Path.Combine(config.Path, config.SubDirectory);
+
+        _logger = logger ?? NullLogger<LocalFileStorage>.Instance;
     }
 
     public async Task SaveBackupAsync(
@@ -119,7 +124,7 @@ public class LocalFileStorage : IBackupStorage
     public Task FinalizeExportAsync(string commitMessage, CancellationToken cancellationToken = default)
     {
         if (_currentRunPath != null)
-            Console.WriteLine($"Backup saved to: {_currentRunPath}");
+            _logger.LogInformation("Backup saved to: {BackupPath}", _currentRunPath);
         return Task.CompletedTask;
     }
 

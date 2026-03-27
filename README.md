@@ -13,6 +13,7 @@ It can run interactively, in CI/CD pipelines, or as an Azure Automation runbook 
 | **Monitor** | Compares current live state with the backup and reports additions, removals, and field-level modifications |
 | **Storage backends** | Local file system **or** Git repository (auto-commit + push) |
 | **Scheduling** | Run once (`--interval 0`) or loop on a configurable interval |
+| **Logging** | Structured logging via `Microsoft.Extensions.Logging` with configurable verbosity (`--verbosity`) |
 | **Configuration** | `appsettings.json`, environment variables, and/or CLI flags |
 
 ### Supported content types
@@ -214,6 +215,33 @@ Set `Monitor.IntervalMinutes = 60` to poll every hour. The process stays alive a
 ```bash
 dotnet run -- monitor --interval 60 --changes-only
 ```
+
+---
+
+## Logging
+
+IntuneMonitor uses `Microsoft.Extensions.Logging` for structured logging output.
+
+### Controlling log verbosity
+
+Use the `--verbosity` global flag to control the log level for any command:
+
+```bash
+# Default – informational messages
+dotnet run -- export
+
+# Verbose / debug output (shows per-item Graph progress)
+dotnet run -- export --verbosity Debug
+
+# Quiet – only warnings and errors
+dotnet run -- monitor --verbosity Warning
+
+# Silent – suppress all log output
+dotnet run -- export --verbosity None
+```
+
+Available levels (from most to least verbose):  
+`Trace` → `Debug` → `Information` (default) → `Warning` → `Error` → `Critical` → `None`
 
 ---
 
