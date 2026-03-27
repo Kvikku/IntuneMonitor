@@ -5,6 +5,7 @@ using IntuneMonitor.Graph;
 using IntuneMonitor.Models;
 using IntuneMonitor.Reporting;
 using IntuneMonitor.Storage;
+using IntuneMonitor.UI;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 
@@ -33,13 +34,19 @@ public class ExportCommand
         IEnumerable<string>? contentTypes = null,
         CancellationToken cancellationToken = default)
     {
+        ConsoleUI.WriteHeader("Intune Export");
         _logger.LogInformation("=== Intune Export ===");
 
         // Authenticate
         TokenCredential credential;
         try
         {
-            credential = CredentialFactory.Create(_config.Authentication);
+            credential = await ConsoleUI.StatusAsync("Authenticating...", async () =>
+            {
+                await Task.CompletedTask;
+                return CredentialFactory.Create(_config.Authentication);
+            });
+            ConsoleUI.Success($"Authenticated (method: {_config.Authentication.Method})");
             _logger.LogInformation("Authentication configured (method: {AuthMethod})", _config.Authentication.Method);
         }
         catch (Exception ex)
@@ -72,7 +79,8 @@ public class ExportCommand
         Dictionary<string, List<IntuneItem>> allItems;
         try
         {
-            allItems = await exporter.ExportAllAsync(types, progress, cancellationToken);
+            allItems = await ConsoleUI.StatusAsync("Fetching policies from Microsoft Graph...", async () =>
+                await exporter.ExportAllAsync(types, progress, cancellationToken));
         }
         catch (Exception ex)
         {
@@ -84,29 +92,34 @@ public class ExportCommand
         int totalItems = 0;
         string tenantId = _config.Authentication.TenantId;
         var summaries = new List<ExportContentSummary>();
+        var typeCounts = new List<(string ContentType, int Count)>();
 
-        foreach (var (contentType, items) in allItems)
+        await ConsoleUI.StatusAsync("Saving to backup storage...", async () =>
         {
-            var document = new BackupDocument
+            foreach (var (contentType, items) in allItems)
             {
-                ExportedAt = DateTime.UtcNow.ToString("o"),
-                TenantId = tenantId,
-                TenantName = tenantId,
-                ContentType = contentType,
-                Items = items
-            };
+                var document = new BackupDocument
+                {
+                    ExportedAt = DateTime.UtcNow.ToString("o"),
+                    TenantId = tenantId,
+                    TenantName = tenantId,
+                    ContentType = contentType,
+                    Items = items
+                };
 
-            await storage.SaveBackupAsync(contentType, document, cancellationToken);
-            _logger.LogInformation("Saved {ItemCount} {ContentType} item(s)", items.Count, contentType);
-            totalItems += items.Count;
+                await storage.SaveBackupAsync(contentType, document, cancellationToken);
+                _logger.LogInformation("Saved {ItemCount} {ContentType} item(s)", items.Count, contentType);
+                totalItems += items.Count;
+                typeCounts.Add((contentType, items.Count));
 
-            summaries.Add(new ExportContentSummary
-            {
-                ContentType = contentType,
-                ItemCount = items.Count,
-                ItemNames = items.Select(i => i.Name ?? i.Id ?? "(unknown)").ToList()
-            });
-        }
+                summaries.Add(new ExportContentSummary
+                {
+                    ContentType = contentType,
+                    ItemCount = items.Count,
+                    ItemNames = items.Select(i => i.Name ?? i.Id ?? "(unknown)").ToList()
+                });
+            }
+        });
 
         // Finalize (commit/push for Git storage)
         var commitMsg = $"Intune export {DateTime.UtcNow:yyyy-MM-dd HH:mm:ss} UTC – {totalItems} items";
@@ -123,7 +136,11 @@ public class ExportCommand
             ContentSummaries = summaries
         }, cancellationToken);
 
+        // Summary output
+        ConsoleUI.WriteExportSummary(totalItems, typeCounts);
+
         _logger.LogInformation("Export complete. {TotalItems} total item(s) exported", totalItems);
+        ConsoleUI.Success($"Export complete — {totalItems} item(s) exported");
         return totalItems;
     }
 

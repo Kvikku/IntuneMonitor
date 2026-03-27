@@ -7,6 +7,7 @@ using IntuneMonitor.Graph;
 using IntuneMonitor.Models;
 using IntuneMonitor.Reporting;
 using IntuneMonitor.Storage;
+using IntuneMonitor.UI;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 
@@ -42,6 +43,7 @@ public class MonitorCommand
         IEnumerable<string>? contentTypes = null,
         CancellationToken cancellationToken = default)
     {
+        ConsoleUI.WriteHeader("Intune Monitor");
         _logger.LogInformation("=== Intune Monitor ===");
         _logger.LogInformation("Started at {StartTime} UTC", DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss"));
 
@@ -49,7 +51,11 @@ public class MonitorCommand
         TokenCredential credential;
         try
         {
-            credential = CredentialFactory.Create(_config.Authentication);
+            credential = await ConsoleUI.StatusAsync("Authenticating...", async () =>
+            {
+                await Task.CompletedTask;
+                return CredentialFactory.Create(_config.Authentication);
+            });
         }
         catch (Exception ex)
         {
@@ -79,7 +85,8 @@ public class MonitorCommand
         Dictionary<string, List<IntuneItem>> liveData;
         try
         {
-            liveData = await exporter.ExportAllAsync(types, progress, cancellationToken);
+            liveData = await ConsoleUI.StatusAsync("Fetching current state from Microsoft Graph...", async () =>
+                await exporter.ExportAllAsync(types, progress, cancellationToken));
         }
         catch (Exception ex)
         {
@@ -113,6 +120,7 @@ public class MonitorCommand
         };
 
         PrintReport(report);
+        ConsoleUI.WriteChangeReport(report);
         await WriteReportAsync(report, cancellationToken);
         await WriteHtmlReportAsync(report, cancellationToken);
 

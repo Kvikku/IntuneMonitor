@@ -1,9 +1,15 @@
 using IntuneMonitor.Commands;
 using IntuneMonitor.Config;
 using IntuneMonitor.Models;
+using IntuneMonitor.UI;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using System.CommandLine;
+
+// ---------------------------------------------------------------------------
+// Banner
+// ---------------------------------------------------------------------------
+ConsoleUI.WriteBanner();
 
 // ---------------------------------------------------------------------------
 // Configuration loading
@@ -216,18 +222,18 @@ var listTypesCommand = new Command("list-types", "Display all supported Intune c
 rootCommand.AddCommand(listTypesCommand);
 listTypesCommand.SetHandler((context) =>
 {
-    var logLevel = context.ParseResult.GetValueForOption(verbosityOption);
-    using var loggerFactory = CreateLoggerFactory(logLevel);
-    var logger = loggerFactory.CreateLogger("IntuneMonitor");
-
-    logger.LogInformation("Supported content types:");
-    foreach (var ct in IntuneContentTypes.All)
-        logger.LogInformation("  {ContentType} → {FileName}", ct.PadRight(40), IntuneContentTypes.FileNames[ct]);
+    ConsoleUI.WriteContentTypesTable();
 });
 
 // ---------------------------------------------------------------------------
-// Run
+// Run – interactive menu when no args, CLI otherwise
 // ---------------------------------------------------------------------------
+if (args.Length == 0)
+{
+    var menu = new InteractiveMenu(appConfig, CreateLoggerFactory);
+    return await menu.RunAsync();
+}
+
 return await rootCommand.InvokeAsync(args);
 
 // ---------------------------------------------------------------------------
