@@ -356,7 +356,6 @@ Available levels (from most to least verbose):
 
 ---
 
-## Running tests
 ## Running Tests
 
 ```bash
