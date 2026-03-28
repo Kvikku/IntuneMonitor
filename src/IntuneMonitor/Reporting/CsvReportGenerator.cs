@@ -116,8 +116,11 @@ public static class CsvReportGenerator
         if (string.IsNullOrEmpty(value))
             return "";
 
+        // Quote if contains special CSV chars or starts with formula prefix characters
+        // to prevent CSV injection (formula injection) in spreadsheet applications
         if (value.Contains(',') || value.Contains('"') || value.Contains('\n') || value.Contains('\r')
-            || value.StartsWith(' ') || value.EndsWith(' '))
+            || value.StartsWith(' ') || value.EndsWith(' ')
+            || value.StartsWith('=') || value.StartsWith('+') || value.StartsWith('-') || value.StartsWith('@'))
         {
             return "\"" + value.Replace("\"", "\"\"") + "\"";
         }

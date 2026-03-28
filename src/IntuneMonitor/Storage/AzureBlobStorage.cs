@@ -81,6 +81,8 @@ public class AzureBlobStorage : IBackupStorage
             ? $"{folderName}/{fileName}"
             : $"{_config.SubDirectory}/{folderName}/{fileName}";
 
+        blobPath = SanitizeBlobPath(blobPath);
+
         var json = JsonSerializer.Serialize(document, WriteOptions);
 
         using var httpClient = await CreateHttpClientAsync(cancellationToken);
@@ -115,6 +117,8 @@ public class AzureBlobStorage : IBackupStorage
         var blobPath = string.IsNullOrWhiteSpace(_config.SubDirectory)
             ? $"{folderName}/{fileName}"
             : $"{_config.SubDirectory}/{folderName}/{fileName}";
+
+        blobPath = SanitizeBlobPath(blobPath);
 
         try
         {
@@ -214,5 +218,16 @@ public class AzureBlobStorage : IBackupStorage
         {
             _logger.LogDebug(ex, "Container check/create for '{ContainerName}' failed (may already exist)", _containerName);
         }
+    }
+
+    /// <summary>
+    /// Sanitizes a blob path segment to prevent path traversal attacks.
+    /// Removes ".." segments and normalizes the path.
+    /// </summary>
+    private static string SanitizeBlobPath(string path)
+    {
+        var segments = path.Split('/', StringSplitOptions.RemoveEmptyEntries);
+        var safe = segments.Where(s => s != ".." && s != ".").ToArray();
+        return string.Join("/", safe);
     }
 }

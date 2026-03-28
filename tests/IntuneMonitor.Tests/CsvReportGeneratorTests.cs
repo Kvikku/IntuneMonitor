@@ -156,4 +156,30 @@ public class CsvReportGeneratorTests : IDisposable
         var content = await File.ReadAllTextAsync(path);
         Assert.Contains("\"Policy with, comma\"", content);
     }
+
+    [Fact]
+    public async Task WriteChangeReportAsync_EscapesFormulaInjection()
+    {
+        var report = new ChangeReport
+        {
+            GeneratedAt = DateTime.UtcNow,
+            Changes = new List<PolicyChange>
+            {
+                new PolicyChange
+                {
+                    ContentType = "SettingsCatalog",
+                    PolicyId = "abc",
+                    PolicyName = "=cmd|'/c calc'!A1",
+                    ChangeType = ChangeType.Added
+                }
+            }
+        };
+
+        var path = Path.Combine(_tempDir, "formula.csv");
+        await CsvReportGenerator.WriteChangeReportAsync(report, path);
+
+        var content = await File.ReadAllTextAsync(path);
+        // Formula prefixes (=, +, -, @) must be quoted to prevent CSV injection
+        Assert.Contains("\"=cmd|'/c calc'!A1\"", content);
+    }
 }
