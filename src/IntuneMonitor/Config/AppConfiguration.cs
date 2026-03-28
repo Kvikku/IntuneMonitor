@@ -16,6 +16,9 @@ public class AppConfiguration
 
     /// <summary>List of content types to process. Defaults to all when empty.</summary>
     public List<string> ContentTypes { get; set; } = new();
+
+    /// <summary>Notification settings for drift alerts.</summary>
+    public NotificationConfig Notifications { get; set; } = new();
 }
 
 /// <summary>
@@ -148,4 +151,58 @@ public class MonitorConfig
     /// When true, automatically opens the HTML report in the default browser after generation.
     /// </summary>
     public bool OpenHtmlReport { get; set; } = true;
+}
+
+/// <summary>
+/// Notification configuration for drift detection alerts.
+/// </summary>
+public class NotificationConfig
+{
+    /// <summary>Microsoft Teams incoming webhook configuration.</summary>
+    public TeamsWebhookConfig? Teams { get; set; }
+
+    /// <summary>Slack incoming webhook configuration.</summary>
+    public SlackWebhookConfig? Slack { get; set; }
+
+    /// <summary>Email (SMTP) notification configuration.</summary>
+    public EmailNotificationConfig? Email { get; set; }
+}
+
+/// <summary>Microsoft Teams webhook configuration.</summary>
+public class TeamsWebhookConfig
+{
+    /// <summary>Incoming webhook URL for the Teams channel.</summary>
+    public string WebhookUrl { get; set; } = string.Empty;
+}
+
+/// <summary>Slack webhook configuration.</summary>
+public class SlackWebhookConfig
+{
+    /// <summary>Incoming webhook URL for the Slack channel.</summary>
+    public string WebhookUrl { get; set; } = string.Empty;
+}
+
+/// <summary>Email notification configuration.</summary>
+public class EmailNotificationConfig
+{
+    /// <summary>SMTP server hostname.</summary>
+    public string SmtpServer { get; set; } = string.Empty;
+
+    /// <summary>SMTP server port (default 587).</summary>
+    public int SmtpPort { get; set; } = 587;
+
+    /// <summary>Use SSL/TLS for SMTP connection.</summary>
+    public bool UseSsl { get; set; } = true;
+
+    /// <summary>SMTP username for authentication.</summary>
+    public string? Username { get; set; }
+
+    /// <summary>SMTP password for authentication.</summary>
+    public string? Password { get; set; }
+
+    /// <summary>Sender email address.</summary>
+    public string FromAddress { get; set; } = string.Empty;
+
+    /// <summary>Recipient email addresses.</summary>
+    public List<string> ToAddresses { get; set; } = new();
 }
