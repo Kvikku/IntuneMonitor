@@ -18,6 +18,13 @@ public static class IntuneContentTypes
     public const string WindowsAutoPilotProfile = "WindowsAutoPilotProfile";
     public const string AppleBYODEnrollmentProfile = "AppleBYODEnrollmentProfile";
     public const string AssignmentFilter = "AssignmentFilter";
+    public const string ConditionalAccessPolicy = "ConditionalAccessPolicy";
+    public const string AppProtectionPolicy = "AppProtectionPolicy";
+    public const string AppConfigurationPolicy = "AppConfigurationPolicy";
+    public const string EndpointSecurityPolicy = "EndpointSecurityPolicy";
+    public const string EnrollmentRestriction = "EnrollmentRestriction";
+    public const string RoleDefinition = "RoleDefinition";
+    public const string NamedLocation = "NamedLocation";
 
     /// <summary>
     /// Maps each content type to its Microsoft Graph API endpoint path.
@@ -38,6 +45,13 @@ public static class IntuneContentTypes
             { WindowsAutoPilotProfile, "deviceManagement/windowsAutopilotDeploymentProfiles" },
             { AppleBYODEnrollmentProfile, "deviceEnrollment/appleUserInitiatedEnrollmentProfiles" },
             { AssignmentFilter, "deviceManagement/assignmentFilters" },
+            { ConditionalAccessPolicy, "identity/conditionalAccess/policies" },
+            { AppProtectionPolicy, "deviceAppManagement/managedAppPolicies" },
+            { AppConfigurationPolicy, "deviceAppManagement/mobileAppConfigurations" },
+            { EndpointSecurityPolicy, "deviceManagement/intents" },
+            { EnrollmentRestriction, "deviceManagement/deviceEnrollmentConfigurations" },
+            { RoleDefinition, "deviceManagement/roleDefinitions" },
+            { NamedLocation, "identity/conditionalAccess/namedLocations" },
         };
 
     /// <summary>
@@ -59,6 +73,13 @@ public static class IntuneContentTypes
             { WindowsAutoPilotProfile, "windowsautopilot.json" },
             { AppleBYODEnrollmentProfile, "applebyodenrollment.json" },
             { AssignmentFilter, "assignmentfilter.json" },
+            { ConditionalAccessPolicy, "conditionalaccesspolicy.json" },
+            { AppProtectionPolicy, "appprotectionpolicy.json" },
+            { AppConfigurationPolicy, "appconfigurationpolicy.json" },
+            { EndpointSecurityPolicy, "endpointsecuritypolicy.json" },
+            { EnrollmentRestriction, "enrollmentrestriction.json" },
+            { RoleDefinition, "roledefinition.json" },
+            { NamedLocation, "namedlocation.json" },
         };
 
     /// <summary>
@@ -80,6 +101,13 @@ public static class IntuneContentTypes
             { WindowsAutoPilotProfile, "WindowsAutoPilotProfile" },
             { AppleBYODEnrollmentProfile, "AppleBYODEnrollmentProfile" },
             { AssignmentFilter, "AssignmentFilter" },
+            { ConditionalAccessPolicy, "ConditionalAccessPolicy" },
+            { AppProtectionPolicy, "AppProtectionPolicy" },
+            { AppConfigurationPolicy, "AppConfigurationPolicy" },
+            { EndpointSecurityPolicy, "EndpointSecurityPolicy" },
+            { EnrollmentRestriction, "EnrollmentRestriction" },
+            { RoleDefinition, "RoleDefinition" },
+            { NamedLocation, "NamedLocation" },
         };
 
     /// <summary>All supported content type names.</summary>
