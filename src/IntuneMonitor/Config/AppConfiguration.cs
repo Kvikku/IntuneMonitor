@@ -19,6 +19,9 @@ public class AppConfiguration
 
     /// <summary>Notification settings for drift alerts.</summary>
     public NotificationConfig Notifications { get; set; } = new();
+
+    /// <summary>Named tenant profiles for multi-tenant operations.</summary>
+    public Dictionary<string, TenantProfile> TenantProfiles { get; set; } = new(StringComparer.OrdinalIgnoreCase);
 }
 
 /// <summary>
@@ -33,7 +36,7 @@ public class AuthenticationConfig
     public string ClientId { get; set; } = string.Empty;
 
     /// <summary>
-    /// Authentication method: "ClientSecret" or "Certificate".
+    /// Authentication method: "ClientSecret", "Certificate", or "DeviceCode".
     /// </summary>
     public string Method { get; set; } = "ClientSecret";
 
@@ -205,4 +208,20 @@ public class EmailNotificationConfig
 
     /// <summary>Recipient email addresses.</summary>
     public List<string> ToAddresses { get; set; } = new();
+}
+
+/// <summary>
+/// A named tenant profile containing authentication and optional backup settings.
+/// Used for multi-tenant operations.
+/// </summary>
+public class TenantProfile
+{
+    /// <summary>Display name for this tenant profile.</summary>
+    public string DisplayName { get; set; } = string.Empty;
+
+    /// <summary>Authentication settings for this tenant.</summary>
+    public AuthenticationConfig Authentication { get; set; } = new();
+
+    /// <summary>Optional backup settings override for this tenant.</summary>
+    public BackupConfig? Backup { get; set; }
 }

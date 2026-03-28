@@ -20,9 +20,12 @@ public static class CredentialFactory
         if (string.IsNullOrWhiteSpace(config.ClientId))
             throw new InvalidOperationException("Authentication.ClientId is required.");
 
-        return config.Method?.Equals("Certificate", StringComparison.OrdinalIgnoreCase) == true
-            ? CreateCertificateCredential(config)
-            : CreateClientSecretCredential(config);
+        return config.Method?.ToLowerInvariant() switch
+        {
+            "certificate" => CreateCertificateCredential(config),
+            "devicecode" => CreateDeviceCodeCredential(config),
+            _ => CreateClientSecretCredential(config)
+        };
     }
 
     private static ClientSecretCredential CreateClientSecretCredential(AuthenticationConfig config)
@@ -32,6 +35,22 @@ public static class CredentialFactory
                 "Authentication.ClientSecret is required when Method is 'ClientSecret'.");
 
         return new ClientSecretCredential(config.TenantId, config.ClientId, config.ClientSecret);
+    }
+
+    private static DeviceCodeCredential CreateDeviceCodeCredential(AuthenticationConfig config)
+    {
+        return new DeviceCodeCredential(new DeviceCodeCredentialOptions
+        {
+            TenantId = config.TenantId,
+            ClientId = config.ClientId,
+            DeviceCodeCallback = (code, cancellation) =>
+            {
+                Console.WriteLine();
+                Console.WriteLine(code.Message);
+                Console.WriteLine();
+                return Task.CompletedTask;
+            }
+        });
     }
 
     private static ClientCertificateCredential CreateCertificateCredential(AuthenticationConfig config)
