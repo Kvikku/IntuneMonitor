@@ -70,7 +70,7 @@ public class AuthenticationConfig
 public class BackupConfig
 {
     /// <summary>
-    /// Storage backend type: "LocalFile" or "Git".
+    /// Storage backend type: "LocalFile", "Git", or "AzureBlob".
     /// </summary>
     public string StorageType { get; set; } = "LocalFile";
 
@@ -79,6 +79,20 @@ public class BackupConfig
 
     /// <summary>Sub-directory within the backup root where JSON files are placed.</summary>
     public string SubDirectory { get; set; } = string.Empty;
+
+    // --- Azure Blob Storage ---
+
+    /// <summary>
+    /// Azure Blob Storage account URL or SAS URL.
+    /// Used when StorageType is "AzureBlob".
+    /// Plain URL uses DefaultAzureCredential; URL with SAS token uses the token.
+    /// </summary>
+    public string? AzureBlobConnectionString { get; set; }
+
+    /// <summary>
+    /// Azure Blob Storage container name. Defaults to "intune-backup".
+    /// </summary>
+    public string? AzureBlobContainerName { get; set; }
 
     // --- Git-specific ---
 

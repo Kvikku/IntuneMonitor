@@ -1,6 +1,7 @@
 using IntuneMonitor.Commands;
 using IntuneMonitor.Config;
 using IntuneMonitor.Models;
+using IntuneMonitor.Storage;
 using Microsoft.Extensions.Logging;
 using Spectre.Console;
 
@@ -33,6 +34,10 @@ public class InteractiveMenu
                         "Export policies",
                         "Import policies",
                         "Monitor for changes",
+                        "Rollback drift",
+                        "Compare backups (diff)",
+                        "Analyze dependencies",
+                        "Validate backups",
                         "Review audit logs",
                         "List content types",
                         "Settings overview",
@@ -48,6 +53,18 @@ public class InteractiveMenu
                     break;
                 case "Monitor for changes":
                     await RunMonitorAsync();
+                    break;
+                case "Rollback drift":
+                    await RunRollbackAsync();
+                    break;
+                case "Compare backups (diff)":
+                    await RunDiffAsync();
+                    break;
+                case "Analyze dependencies":
+                    await RunDependencyAsync();
+                    break;
+                case "Validate backups":
+                    await RunValidateAsync();
                     break;
                 case "Review audit logs":
                     await RunAuditLogAsync();
@@ -173,6 +190,93 @@ public class InteractiveMenu
         await cmd.RunAsync(days, htmlPath, jsonPath);
     }
 
+    private async Task RunRollbackAsync()
+    {
+        var types = PromptContentTypes();
+        var dryRun = AnsiConsole.Confirm("Dry run (preview only, no changes)?", true);
+
+        using var loggerFactory = _loggerFactoryCreator(LogLevel.Information);
+        var cmd = new RollbackCommand(_config, loggerFactory);
+        await cmd.RunAsync(types, dryRun);
+    }
+
+    private async Task RunDiffAsync()
+    {
+        var sourcePath = AnsiConsole.Prompt(
+            new TextPrompt<string>("Source backup path (baseline):")
+                .Validate(v => !string.IsNullOrWhiteSpace(v)
+                    ? ValidationResult.Success()
+                    : ValidationResult.Error("Path is required")));
+
+        var targetPath = AnsiConsole.Prompt(
+            new TextPrompt<string>("Target backup path (current):")
+                .Validate(v => !string.IsNullOrWhiteSpace(v)
+                    ? ValidationResult.Success()
+                    : ValidationResult.Error("Path is required")));
+
+        var types = PromptContentTypes();
+
+        string? htmlPath = null;
+        if (AnsiConsole.Confirm("Generate HTML diff report?", false))
+        {
+            htmlPath = AnsiConsole.Prompt(
+                new TextPrompt<string>("  Report path:")
+                    .DefaultValue("reports/diff-report.html")
+                    .AllowEmpty());
+            if (string.IsNullOrWhiteSpace(htmlPath)) htmlPath = null;
+        }
+
+        using var loggerFactory = _loggerFactoryCreator(LogLevel.Information);
+        var cmd = new DiffCommand(_config, loggerFactory);
+        await cmd.RunAsync(sourcePath, targetPath, types, htmlPath);
+    }
+
+    private async Task RunDependencyAsync()
+    {
+        var types = PromptContentTypes();
+
+        string? jsonPath = null;
+        if (AnsiConsole.Confirm("Generate JSON dependency report?", false))
+        {
+            jsonPath = AnsiConsole.Prompt(
+                new TextPrompt<string>("  Report path:")
+                    .DefaultValue("reports/dependency-report.json")
+                    .AllowEmpty());
+            if (string.IsNullOrWhiteSpace(jsonPath)) jsonPath = null;
+        }
+
+        using var loggerFactory = _loggerFactoryCreator(LogLevel.Information);
+        var cmd = new DependencyCommand(_config, loggerFactory);
+        await cmd.RunAsync(types, jsonPath);
+    }
+
+    private async Task RunValidateAsync()
+    {
+        using var loggerFactory = _loggerFactoryCreator(LogLevel.Information);
+        var storage = BackupStorageFactory.Create(_config.Backup, loggerFactory);
+        var validator = new BackupValidator(loggerFactory.CreateLogger<BackupValidator>());
+
+        var results = await validator.ValidateStorageAsync(storage);
+
+        foreach (var (contentType, result) in results)
+        {
+            if (result.IsValid)
+                ConsoleUI.Success($"{contentType}: Valid ({result.Warnings.Count} warning(s))");
+            else
+            {
+                ConsoleUI.Error($"{contentType}: Invalid — {result.Errors.Count} error(s)");
+                foreach (var error in result.Errors)
+                    ConsoleUI.Error($"  {error}");
+            }
+
+            foreach (var warning in result.Warnings)
+                ConsoleUI.Warning($"  {warning}");
+        }
+
+        if (results.All(r => r.Value.IsValid))
+            ConsoleUI.Success("All backups are valid");
+    }
+
     private List<string>? PromptContentTypes()
     {
         var filterChoice = AnsiConsole.Confirm("Limit to specific content types? (No = all types)", false);
@@ -236,6 +340,25 @@ public class InteractiveMenu
             var ctNode = root.AddNode("[bold cyan]Content Type Filter[/]");
             foreach (var ct in _config.ContentTypes)
                 ctNode.AddNode($"[yellow]{SafeMarkup(ct)}[/]");
+        }
+
+        // Notifications
+        var notifNode = root.AddNode("[bold cyan]Notifications[/]");
+        if (_config.Notifications.Teams != null && !string.IsNullOrWhiteSpace(_config.Notifications.Teams.WebhookUrl))
+            notifNode.AddNode("[yellow]Teams webhook: configured[/]");
+        if (_config.Notifications.Slack != null && !string.IsNullOrWhiteSpace(_config.Notifications.Slack.WebhookUrl))
+            notifNode.AddNode("[yellow]Slack webhook: configured[/]");
+        if (_config.Notifications.Email != null && !string.IsNullOrWhiteSpace(_config.Notifications.Email.SmtpServer))
+            notifNode.AddNode($"[yellow]Email: {SafeMarkup(_config.Notifications.Email.SmtpServer)} → {_config.Notifications.Email.ToAddresses.Count} recipient(s)[/]");
+        if (notifNode.Nodes.Count == 0)
+            notifNode.AddNode("[dim](none configured)[/]");
+
+        // Tenant profiles
+        if (_config.TenantProfiles.Count > 0)
+        {
+            var profileNode = root.AddNode("[bold cyan]Tenant Profiles[/]");
+            foreach (var (name, profile) in _config.TenantProfiles)
+                profileNode.AddNode($"[yellow]{SafeMarkup(name)}[/]: {SafeMarkup(profile.DisplayName)} (Tenant: {SafeMarkup(profile.Authentication.TenantId)})");
         }
 
         AnsiConsole.Write(root);
