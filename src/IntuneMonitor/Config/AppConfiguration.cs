@@ -182,6 +182,9 @@ public class AuditLogConfig
     /// When true, automatically opens the HTML audit report in the default browser after generation.
     /// </summary>
     public bool OpenHtmlReport { get; set; } = true;
+}
+
+/// <summary>
 /// Notification configuration for drift detection alerts.
 /// </summary>
 public class NotificationConfig
