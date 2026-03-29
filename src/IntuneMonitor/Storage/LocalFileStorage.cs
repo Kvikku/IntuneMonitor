@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Text.Json;
 using IntuneMonitor.Config;
+using IntuneMonitor.Graph;
 using IntuneMonitor.Models;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -13,17 +14,6 @@ namespace IntuneMonitor.Storage;
 /// </summary>
 public class LocalFileStorage : IBackupStorage
 {
-    private static readonly JsonSerializerOptions WriteOptions = new()
-    {
-        WriteIndented = true,
-        PropertyNamingPolicy = JsonNamingPolicy.CamelCase
-    };
-
-    private static readonly JsonSerializerOptions ReadOptions = new()
-    {
-        PropertyNameCaseInsensitive = true
-    };
-
     private const string TimestampFormat = "yyyy-MM-dd_HHmmss";
 
     private readonly string _rootPath;
@@ -54,16 +44,16 @@ public class LocalFileStorage : IBackupStorage
         // Create a timestamped run folder on first save
         _currentRunPath ??= Path.Combine(_rootPath, DateTime.Now.ToString(TimestampFormat));
 
-        var folderName = GetFolderName(contentType);
+        var folderName = BackupFileHelpers.GetFolderName(contentType);
         var folderPath = Path.Combine(_currentRunPath, folderName);
         Directory.CreateDirectory(folderPath);
 
         // Write each item as an individual file named after the policy
         foreach (var item in document.Items)
         {
-            var fileName = BuildFileName(item);
+            var fileName = BackupFileHelpers.BuildFileName(item);
             var filePath = Path.Combine(folderPath, fileName);
-            var json = JsonSerializer.Serialize(item, WriteOptions);
+            var json = JsonSerializer.Serialize(item, JsonDefaults.IndentedCamelCase);
             await File.WriteAllTextAsync(filePath, json, cancellationToken);
         }
     }
@@ -76,7 +66,7 @@ public class LocalFileStorage : IBackupStorage
         if (latestRun == null)
             return null;
 
-        var folderName = GetFolderName(contentType);
+        var folderName = BackupFileHelpers.GetFolderName(contentType);
         var folderPath = Path.Combine(latestRun, folderName);
 
         if (!Directory.Exists(folderPath))
@@ -90,7 +80,7 @@ public class LocalFileStorage : IBackupStorage
         foreach (var filePath in jsonFiles)
         {
             var json = await File.ReadAllTextAsync(filePath, cancellationToken);
-            var item = JsonSerializer.Deserialize<IntuneItem>(json, ReadOptions);
+            var item = JsonSerializer.Deserialize<IntuneItem>(json, JsonDefaults.CaseInsensitiveRead);
             if (item != null)
                 items.Add(item);
         }
@@ -142,24 +132,5 @@ public class LocalFileStorage : IBackupStorage
                 DateTimeStyles.None, out _))
             .OrderByDescending(d => Path.GetFileName(d))
             .FirstOrDefault();
-    }
-
-    private static string GetFolderName(string contentType) =>
-        IntuneContentTypes.FolderNames.TryGetValue(contentType, out var folder)
-            ? folder
-            : contentType;
-
-    private static string BuildFileName(IntuneItem item)
-    {
-        var name = SanitizeFileName(item.Name ?? item.Id ?? "unknown");
-        var shortId = (item.Id ?? "noid").Split('-')[0];
-        return $"{name}_{shortId}.json";
-    }
-
-    private static string SanitizeFileName(string name)
-    {
-        var invalid = Path.GetInvalidFileNameChars();
-        var sanitized = new string(name.Select(c => invalid.Contains(c) ? '_' : c).ToArray());
-        return sanitized.Length > 200 ? sanitized[..200] : sanitized;
     }
 }

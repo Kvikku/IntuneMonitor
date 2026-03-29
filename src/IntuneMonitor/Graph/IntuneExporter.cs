@@ -2,6 +2,8 @@ using System.Net.Http.Headers;
 using System.Text.Json;
 using Azure.Core;
 using IntuneMonitor.Models;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace IntuneMonitor.Graph;
 
@@ -11,7 +13,7 @@ namespace IntuneMonitor.Graph;
 public class IntuneExporter
 {
     private readonly TokenCredential _credential;
-    private readonly string[] _scopes = { "https://graph.microsoft.com/.default" };
+    private readonly ILogger<IntuneExporter> _logger;
 
     /// <summary>Cache of group ID → display name to avoid redundant Graph lookups.</summary>
     private readonly Dictionary<string, string> _groupNameCache = new(StringComparer.OrdinalIgnoreCase);
@@ -40,9 +42,10 @@ public class IntuneExporter
         { "#microsoft.graph.allDevicesAssignmentTarget", "All Devices" }
     };
 
-    public IntuneExporter(TokenCredential credential)
+    public IntuneExporter(TokenCredential credential, ILoggerFactory? loggerFactory = null)
     {
         _credential = credential ?? throw new ArgumentNullException(nameof(credential));
+        _logger = (loggerFactory ?? NullLoggerFactory.Instance).CreateLogger<IntuneExporter>();
     }
 
     /// <summary>
@@ -60,8 +63,8 @@ public class IntuneExporter
         if (!IntuneContentTypes.GraphEndpoints.TryGetValue(contentType, out var endpoint))
             throw new ArgumentException($"Unsupported content type: '{contentType}'", nameof(contentType));
 
-        var token = await GetAccessTokenAsync(cancellationToken);
-        using var httpClient = CreateHttpClient(token);
+        var token = await GraphClientFactory.GetAccessTokenAsync(_credential, cancellationToken);
+        using var httpClient = GraphClientFactory.CreateHttpClient(token);
 
         var items = new List<IntuneItem>();
         var url = $"https://graph.microsoft.com/beta/{endpoint}";
@@ -83,13 +86,13 @@ public class IntuneExporter
             {
                 cancellationToken.ThrowIfCancellationRequested();
 
-                var id = GetStringProperty(item, "id");
-                var name = GetDisplayName(item);
-                var description = GetStringProperty(item, "description");
-                var platform = GetStringProperty(item, "platforms");
+                var id = JsonElementHelpers.GetStringOrNull(item, "id");
+                var name = JsonElementHelpers.GetDisplayName(item);
+                var description = JsonElementHelpers.GetStringOrNull(item, "description");
+                var platform = JsonElementHelpers.GetStringOrNull(item, "platforms");
 
-                DateTime? lastModified = TryParseDate(item, "lastModifiedDateTime");
-                DateTime? created = TryParseDate(item, "createdDateTime");
+                DateTime? lastModified = JsonElementHelpers.TryParseDateTime(item, "lastModifiedDateTime");
+                DateTime? created = JsonElementHelpers.TryParseDateTime(item, "createdDateTime");
 
                 progress?.Report($"[{contentType}] {name}");
 
@@ -177,23 +180,6 @@ public class IntuneExporter
     // Private helpers
     // -------------------------------------------------------------------------
 
-    private async Task<string> GetAccessTokenAsync(CancellationToken cancellationToken)
-    {
-        var tokenRequestContext = new TokenRequestContext(_scopes);
-        var token = await _credential.GetTokenAsync(tokenRequestContext, cancellationToken);
-        return token.Token;
-    }
-
-    private static HttpClient CreateHttpClient(string bearerToken)
-    {
-        var client = new HttpClient();
-        client.DefaultRequestHeaders.Authorization =
-            new AuthenticationHeaderValue("Bearer", bearerToken);
-        client.DefaultRequestHeaders.Accept.Add(
-            new MediaTypeWithQualityHeaderValue("application/json"));
-        return client;
-    }
-
     private async Task<JsonElement?> FetchItemDetailAsync(
         HttpClient httpClient,
         string endpoint,
@@ -208,8 +194,9 @@ public class IntuneExporter
             var json = await response.Content.ReadAsStringAsync(cancellationToken);
             return JsonSerializer.Deserialize<JsonElement>(json);
         }
-        catch
+        catch (Exception ex)
         {
+            _logger.LogDebug(ex, "Failed to fetch detail for {Endpoint}/{ItemId}", endpoint, itemId);
             return null;
         }
     }
@@ -259,9 +246,10 @@ public class IntuneExporter
             var merged = JsonSerializer.Serialize(dict);
             return JsonSerializer.Deserialize<JsonElement>(merged);
         }
-        catch
+        catch (Exception ex)
         {
             // If fetching settings fails, return the policy detail as-is
+            _logger.LogDebug(ex, "Failed to fetch settings for {Endpoint}/{ItemId}", endpoint, itemId);
             return policyDetail;
         }
     }
@@ -314,13 +302,13 @@ public class IntuneExporter
             var enriched = new List<object>();
             foreach (var assignment in allAssignments)
             {
-                var dict = JsonElementToDict(assignment);
+                var dict = JsonElementHelpers.ToDictionary(assignment);
 
                 if (assignment.TryGetProperty("target", out var target))
                 {
-                    var targetDict = JsonElementToDict(target);
-                    var groupId = GetStringProperty(target, "groupId");
-                    var odataType = GetStringProperty(target, "@odata.type");
+                    var targetDict = JsonElementHelpers.ToDictionary(target);
+                    var groupId = JsonElementHelpers.GetStringOrNull(target, "groupId");
+                    var odataType = JsonElementHelpers.GetStringOrNull(target, "@odata.type");
 
                     if (groupId != null)
                     {
@@ -348,8 +336,9 @@ public class IntuneExporter
             var merged = JsonSerializer.Serialize(policyDict);
             return JsonSerializer.Deserialize<JsonElement>(merged);
         }
-        catch
+        catch (Exception ex)
         {
+            _logger.LogDebug(ex, "Failed to fetch assignments for {Endpoint}/{ItemId}", endpoint, itemId);
             return policyDetail;
         }
     }
@@ -381,14 +370,15 @@ public class IntuneExporter
             {
                 var json = await response.Content.ReadAsStringAsync(cancellationToken);
                 var group = JsonSerializer.Deserialize<JsonElement>(json);
-                var name = GetStringProperty(group, "displayName") ?? groupId;
+                var name = JsonElementHelpers.GetStringOrNull(group, "displayName") ?? groupId;
                 _groupNameCache[groupId] = name;
                 return name;
             }
         }
-        catch
+        catch (Exception ex)
         {
             // Fall through to return the raw ID
+            _logger.LogDebug(ex, "Failed to resolve group name for {GroupId}", groupId);
         }
 
         _groupNameCache[groupId] = groupId;
@@ -401,27 +391,5 @@ public class IntuneExporter
         foreach (var prop in element.EnumerateObject())
             dict[prop.Name] = prop.Value;
         return dict;
-    }
-
-    private static string? GetStringProperty(JsonElement el, string name) =>
-        el.TryGetProperty(name, out var prop) && prop.ValueKind == JsonValueKind.String
-            ? prop.GetString()
-            : null;
-
-    private static DateTime? TryParseDate(JsonElement el, string name) =>
-        el.TryGetProperty(name, out var prop)
-        && prop.ValueKind == JsonValueKind.String
-        && DateTime.TryParse(prop.GetString(), out var dt)
-            ? dt
-            : null;
-
-    private static string? GetDisplayName(JsonElement item)
-    {
-        foreach (var prop in new[] { "displayName", "name", "id" })
-        {
-            if (item.TryGetProperty(prop, out var val) && val.ValueKind == JsonValueKind.String)
-                return val.GetString();
-        }
-        return null;
     }
 }

@@ -13,37 +13,19 @@ public static class HtmlAuditReportGenerator
     {
         var sb = new StringBuilder();
 
-        sb.AppendLine("<!DOCTYPE html>");
-        sb.AppendLine("<html lang=\"en\">");
-        sb.AppendLine("<head>");
-        sb.AppendLine("<meta charset=\"UTF-8\">");
-        sb.AppendLine("<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">");
-        sb.AppendLine($"<title>Intune Audit Log Report – {Encode(report.GeneratedAt.ToString("yyyy-MM-dd HH:mm"))}</title>");
-        sb.AppendLine("<style>");
-        sb.AppendLine(HtmlTheme.GetStyles());
-        sb.AppendLine("</style>");
-        sb.AppendLine("</head>");
-        sb.AppendLine("<body class=\"dark\">");
-
-        // Header with theme toggle
-        sb.AppendLine("<header>");
-        sb.AppendLine("<div class=\"header-row\">");
-        sb.AppendLine("<div>");
-        sb.AppendLine("<h1>Intune Audit Log Report</h1>");
-        sb.AppendLine($"<p class=\"meta\">Generated {Encode(report.GeneratedAt.ToString("yyyy-MM-dd HH:mm:ss"))} UTC &middot; " +
-                       $"Period: <strong>{Encode(report.PeriodStart.ToString("yyyy-MM-dd"))}</strong> to <strong>{Encode(report.PeriodEnd.ToString("yyyy-MM-dd"))}</strong> " +
-                       $"({report.DaysReviewed} day(s))</p>");
-        sb.AppendLine("</div>");
-        sb.AppendLine("<button id=\"theme-toggle\" onclick=\"toggleTheme()\" title=\"Toggle light/dark mode\">&#9788;</button>");
-        sb.AppendLine("</div>");
-        sb.AppendLine("</header>");
+        HtmlReportHelpers.AppendDocumentHead(sb,
+            pageTitle: $"Intune Audit Log Report – {report.GeneratedAt:yyyy-MM-dd HH:mm}",
+            headerTitle: "Intune Audit Log Report",
+            subtitle: $"Generated {HtmlReportHelpers.Encode(report.GeneratedAt.ToString("yyyy-MM-dd HH:mm:ss"))} UTC &middot; " +
+                      $"Period: <strong>{HtmlReportHelpers.Encode(report.PeriodStart.ToString("yyyy-MM-dd"))}</strong> to <strong>{HtmlReportHelpers.Encode(report.PeriodEnd.ToString("yyyy-MM-dd"))}</strong> " +
+                      $"({report.DaysReviewed} day(s))");
 
         // Summary cards
         sb.AppendLine("<section class=\"summary\">");
-        AppendCard(sb, "Total Events", report.TotalEvents.ToString(), "total");
-        AppendCard(sb, "Activity Types", report.EventsByActivityType.Count.ToString(), "modified");
-        AppendCard(sb, "Components", report.EventsByComponent.Count.ToString(), "added");
-        AppendCard(sb, "Actors", report.EventsByActor.Count.ToString(), "removed");
+        HtmlReportHelpers.AppendCard(sb, "Total Events", report.TotalEvents.ToString(), "total");
+        HtmlReportHelpers.AppendCard(sb, "Activity Types", report.EventsByActivityType.Count.ToString(), "modified");
+        HtmlReportHelpers.AppendCard(sb, "Components", report.EventsByComponent.Count.ToString(), "added");
+        HtmlReportHelpers.AppendCard(sb, "Actors", report.EventsByActor.Count.ToString(), "removed");
         sb.AppendLine("</section>");
 
         if (report.TotalEvents == 0)
@@ -76,13 +58,13 @@ public static class HtmlAuditReportGenerator
                     string.IsNullOrEmpty(r.DisplayName) ? r.ResourceType : $"{r.DisplayName} ({r.ResourceType})"));
 
                 sb.AppendLine("<tr>");
-                sb.AppendLine($"<td>{Encode(evt.ActivityDateTime.ToString("yyyy-MM-dd HH:mm:ss"))}</td>");
-                sb.AppendLine($"<td class=\"policy-name\">{Encode(evt.Activity)}</td>");
-                sb.AppendLine($"<td><span class=\"change-tag modified\">{Encode(evt.ActivityType)}</span></td>");
-                sb.AppendLine($"<td>{Encode(evt.ComponentName)}</td>");
-                sb.AppendLine($"<td>{Encode(actorName)}</td>");
-                sb.AppendLine($"<td class=\"detail-text\">{Encode(Truncate(resources, 200))}</td>");
-                sb.AppendLine($"<td><span class=\"change-tag {resultClass}\">{Encode(evt.ActivityResult)}</span></td>");
+                sb.AppendLine($"<td>{HtmlReportHelpers.Encode(evt.ActivityDateTime.ToString("yyyy-MM-dd HH:mm:ss"))}</td>");
+                sb.AppendLine($"<td class=\"policy-name\">{HtmlReportHelpers.Encode(evt.Activity)}</td>");
+                sb.AppendLine($"<td><span class=\"change-tag modified\">{HtmlReportHelpers.Encode(evt.ActivityType)}</span></td>");
+                sb.AppendLine($"<td>{HtmlReportHelpers.Encode(evt.ComponentName)}</td>");
+                sb.AppendLine($"<td>{HtmlReportHelpers.Encode(actorName)}</td>");
+                sb.AppendLine($"<td class=\"detail-text\">{HtmlReportHelpers.Encode(HtmlReportHelpers.Truncate(resources, 200))}</td>");
+                sb.AppendLine($"<td><span class=\"change-tag {resultClass}\">{HtmlReportHelpers.Encode(evt.ActivityResult)}</span></td>");
                 sb.AppendLine("</tr>");
             }
 
@@ -95,34 +77,21 @@ public static class HtmlAuditReportGenerator
             sb.AppendLine("</section>");
         }
 
-        // Footer
-        sb.AppendLine("<footer>Generated by IntuneMonitor</footer>");
-
-        // Theme toggle script
-        sb.AppendLine("<script>");
-        sb.AppendLine(HtmlTheme.GetScript());
-        sb.AppendLine("</script>");
-
-        sb.AppendLine("</body>");
-        sb.AppendLine("</html>");
+        HtmlReportHelpers.AppendDocumentFoot(sb);
 
         return sb.ToString();
     }
 
     public static async Task WriteAsync(AuditLogReport report, string outputPath, CancellationToken cancellationToken = default)
     {
-        var dir = Path.GetDirectoryName(outputPath);
-        if (!string.IsNullOrWhiteSpace(dir))
-            Directory.CreateDirectory(dir);
-
         var html = Generate(report);
-        await File.WriteAllTextAsync(outputPath, html, Encoding.UTF8, cancellationToken);
+        await HtmlReportHelpers.WriteHtmlAsync(html, outputPath, cancellationToken);
     }
 
     private static void AppendBreakdownSection(StringBuilder sb, string title, Dictionary<string, int> data)
     {
         sb.AppendLine("<section class=\"content-type\">");
-        sb.AppendLine($"<h2>{Encode(title)} <span class=\"badge\">{data.Count}</span></h2>");
+        sb.AppendLine($"<h2>{HtmlReportHelpers.Encode(title)} <span class=\"badge\">{data.Count}</span></h2>");
         sb.AppendLine("<table>");
         sb.AppendLine("<thead><tr><th>Name</th><th>Count</th></tr></thead>");
         sb.AppendLine("<tbody>");
@@ -130,7 +99,7 @@ public static class HtmlAuditReportGenerator
         foreach (var (name, count) in data.OrderByDescending(kv => kv.Value))
         {
             sb.AppendLine("<tr>");
-            sb.AppendLine($"<td class=\"policy-name\">{Encode(name)}</td>");
+            sb.AppendLine($"<td class=\"policy-name\">{HtmlReportHelpers.Encode(name)}</td>");
             sb.AppendLine($"<td>{count}</td>");
             sb.AppendLine("</tr>");
         }
@@ -138,20 +107,4 @@ public static class HtmlAuditReportGenerator
         sb.AppendLine("</tbody></table>");
         sb.AppendLine("</section>");
     }
-
-    private static void AppendCard(StringBuilder sb, string label, string value, string cssClass)
-    {
-        sb.AppendLine($"<div class=\"card {cssClass}\">");
-        sb.AppendLine($"<div class=\"card-value\">{Encode(value)}</div>");
-        sb.AppendLine($"<div class=\"card-label\">{Encode(label)}</div>");
-        sb.AppendLine("</div>");
-    }
-
-    private static string Encode(string? value) =>
-        HttpUtility.HtmlEncode(value ?? "(null)");
-
-    private static string Truncate(string? value, int maxLength) =>
-        string.IsNullOrEmpty(value) ? string.Empty :
-        value.Length <= maxLength ? value :
-        value[..maxLength] + "…";
 }

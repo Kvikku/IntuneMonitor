@@ -47,11 +47,8 @@ public class ImportCommand
         TokenCredential credential;
         try
         {
-            credential = await ConsoleUI.StatusAsync("Authenticating...", async () =>
-            {
-                await Task.CompletedTask;
-                return CredentialFactory.Create(_config.Authentication);
-            });
+            credential = await ConsoleUI.StatusAsync("Authenticating...",
+                () => Task.FromResult(CredentialFactory.Create(_config.Authentication)));
             ConsoleUI.Success($"Authenticated (method: {_config.Authentication.Method})");
             _logger.LogInformation("Authentication configured (method: {AuthMethod})", _config.Authentication.Method);
         }
@@ -62,7 +59,7 @@ public class ImportCommand
         }
 
         // Determine content types
-        var types = ResolveContentTypes(contentTypes);
+        var types = ContentTypeResolver.Resolve(contentTypes, _config.ContentTypes);
 
         // Load from storage
         IBackupStorage storage;
@@ -125,19 +122,5 @@ public class ImportCommand
         _logger.LogInformation("Import complete. {SuccessCount} succeeded, {ErrorCount} failed", successCount, errorCount);
         ConsoleUI.WriteImportSummary(successCount, errorCount);
         return successCount;
-    }
-
-    private List<string> ResolveContentTypes(IEnumerable<string>? specified)
-    {
-        if (specified != null)
-        {
-            var list = specified.ToList();
-            if (list.Count > 0) return list;
-        }
-
-        if (_config.ContentTypes?.Count > 0)
-            return _config.ContentTypes;
-
-        return IntuneContentTypes.All.ToList();
     }
 }

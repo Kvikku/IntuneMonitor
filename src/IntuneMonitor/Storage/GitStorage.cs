@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Text.Json;
 using IntuneMonitor.Config;
+using IntuneMonitor.Graph;
 using IntuneMonitor.Models;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -13,17 +14,6 @@ namespace IntuneMonitor.Storage;
 /// </summary>
 public class GitStorage : IBackupStorage
 {
-    private static readonly JsonSerializerOptions WriteOptions = new()
-    {
-        WriteIndented = true,
-        PropertyNamingPolicy = JsonNamingPolicy.CamelCase
-    };
-
-    private static readonly JsonSerializerOptions ReadOptions = new()
-    {
-        PropertyNameCaseInsensitive = true
-    };
-
     private readonly BackupConfig _config;
     private readonly string _repoPath;
     private readonly string _backupPath;
@@ -44,7 +34,7 @@ public class GitStorage : IBackupStorage
         BackupDocument document,
         CancellationToken cancellationToken = default)
     {
-        var folderName = GetFolderName(contentType);
+        var folderName = BackupFileHelpers.GetFolderName(contentType);
         var folderPath = Path.Combine(_backupPath, folderName);
         Directory.CreateDirectory(folderPath);
 
@@ -54,9 +44,9 @@ public class GitStorage : IBackupStorage
         // Write each item as an individual file named after the policy
         foreach (var item in document.Items)
         {
-            var fileName = BuildFileName(item);
+            var fileName = BackupFileHelpers.BuildFileName(item);
             var filePath = Path.Combine(folderPath, fileName);
-            var json = JsonSerializer.Serialize(item, WriteOptions);
+            var json = JsonSerializer.Serialize(item, JsonDefaults.IndentedCamelCase);
             await File.WriteAllTextAsync(filePath, json, cancellationToken);
         }
     }
@@ -65,7 +55,7 @@ public class GitStorage : IBackupStorage
         string contentType,
         CancellationToken cancellationToken = default)
     {
-        var folderName = GetFolderName(contentType);
+        var folderName = BackupFileHelpers.GetFolderName(contentType);
         var folderPath = Path.Combine(_backupPath, folderName);
 
         if (!Directory.Exists(folderPath))
@@ -79,7 +69,7 @@ public class GitStorage : IBackupStorage
         foreach (var filePath in jsonFiles)
         {
             var json = await File.ReadAllTextAsync(filePath, cancellationToken);
-            var item = JsonSerializer.Deserialize<IntuneItem>(json, ReadOptions);
+            var item = JsonSerializer.Deserialize<IntuneItem>(json, JsonDefaults.CaseInsensitiveRead);
             if (item != null)
                 items.Add(item);
         }
@@ -233,29 +223,10 @@ public class GitStorage : IBackupStorage
         return stdout.Trim();
     }
 
-    private static string GetFolderName(string contentType) =>
-        IntuneContentTypes.FolderNames.TryGetValue(contentType, out var folder)
-            ? folder
-            : contentType;
-
-    private static string BuildFileName(IntuneItem item)
-    {
-        var name = SanitizeFileName(item.Name ?? item.Id ?? "unknown");
-        var shortId = (item.Id ?? "noid").Split('-')[0];
-        return $"{name}_{shortId}.json";
-    }
-
-    private static string SanitizeFileName(string name)
-    {
-        var invalid = Path.GetInvalidFileNameChars();
-        var sanitized = new string(name.Select(c => invalid.Contains(c) ? '_' : c).ToArray());
-        return sanitized.Length > 200 ? sanitized[..200] : sanitized;
-    }
-
     private static void CleanRemovedItems(string folderPath, List<IntuneItem> currentItems)
     {
         var expectedFiles = new HashSet<string>(
-            currentItems.Select(i => BuildFileName(i)),
+            currentItems.Select(i => BackupFileHelpers.BuildFileName(i)),
             StringComparer.OrdinalIgnoreCase);
 
         foreach (var existingFile in Directory.GetFiles(folderPath, "*.json"))

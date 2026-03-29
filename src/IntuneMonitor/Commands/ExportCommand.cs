@@ -41,11 +41,8 @@ public class ExportCommand
         TokenCredential credential;
         try
         {
-            credential = await ConsoleUI.StatusAsync("Authenticating...", async () =>
-            {
-                await Task.CompletedTask;
-                return CredentialFactory.Create(_config.Authentication);
-            });
+            credential = await ConsoleUI.StatusAsync("Authenticating...",
+                () => Task.FromResult(CredentialFactory.Create(_config.Authentication)));
             ConsoleUI.Success($"Authenticated (method: {_config.Authentication.Method})");
             _logger.LogInformation("Authentication configured (method: {AuthMethod})", _config.Authentication.Method);
         }
@@ -56,7 +53,7 @@ public class ExportCommand
         }
 
         // Determine content types
-        var types = ResolveContentTypes(contentTypes);
+        var types = ContentTypeResolver.Resolve(contentTypes, _config.ContentTypes);
         _logger.LogInformation("Content types to export: {ContentTypes}", string.Join(", ", types));
 
         // Create storage
@@ -73,7 +70,7 @@ public class ExportCommand
         }
 
         // Export from Graph
-        var exporter = new IntuneExporter(credential);
+        var exporter = new IntuneExporter(credential, _loggerFactory);
         var progress = new Progress<string>(msg => _logger.LogDebug("{ProgressMessage}", msg));
 
         Dictionary<string, List<IntuneItem>> allItems;
@@ -144,20 +141,6 @@ public class ExportCommand
         return totalItems;
     }
 
-    private List<string> ResolveContentTypes(IEnumerable<string>? specified)
-    {
-        if (specified != null)
-        {
-            var list = specified.ToList();
-            if (list.Count > 0) return list;
-        }
-
-        if (_config.ContentTypes?.Count > 0)
-            return _config.ContentTypes;
-
-        return IntuneContentTypes.All.ToList();
-    }
-
     private async Task WriteHtmlReportAsync(ExportReport report, CancellationToken cancellationToken)
     {
         var outputPath = _config.Backup.HtmlExportReportPath;
@@ -173,14 +156,7 @@ public class ExportCommand
             _logger.LogInformation("HTML export report written to: {OutputPath}", outputPath);
 
             if (_config.Backup.OpenHtmlExportReport)
-            {
-                var fullPath = Path.GetFullPath(outputPath);
-                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
-                {
-                    FileName = fullPath,
-                    UseShellExecute = true
-                });
-            }
+                ReportWriter.OpenInBrowser(outputPath, _logger);
         }
         catch (Exception ex)
         {
