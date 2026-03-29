@@ -9,7 +9,6 @@ on:
 permissions:
   contents: read
   checks: write
-  pull-requests: write
 
 jobs:
   build:
@@ -42,6 +41,7 @@ jobs:
 
       - name: Check for vulnerable packages
         run: |
+          set -o pipefail
           dotnet list package --vulnerable --include-transitive 2>&1 | tee vulnerability-report.txt
           if grep -qi "Critical\|High" vulnerability-report.txt; then
             echo "::error::Critical or High severity vulnerable packages detected."
