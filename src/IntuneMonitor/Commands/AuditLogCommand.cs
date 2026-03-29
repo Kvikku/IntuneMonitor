@@ -189,7 +189,8 @@ public class AuditLogCommand
             await HtmlAuditReportGenerator.WriteAsync(report, outputPath, cancellationToken);
             _logger.LogInformation("HTML report written to: {OutputPath}", outputPath);
 
-            ReportWriter.OpenInBrowser(outputPath, _logger);
+            if (_config.AuditLog.OpenHtmlReport)
+                ReportWriter.OpenInBrowser(outputPath, _logger);
         }
         catch (Exception ex)
         {

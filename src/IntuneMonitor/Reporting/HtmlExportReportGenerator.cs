@@ -14,7 +14,7 @@ public static class HtmlExportReportGenerator
         var sb = new StringBuilder();
 
         HtmlReportHelpers.AppendDocumentHead(sb,
-            pageTitle: $"Intune Monitor – Export Summary {HtmlReportHelpers.Encode(report.GeneratedAt.ToString("yyyy-MM-dd HH:mm"))}",
+            pageTitle: $"Intune Monitor – Export Summary {report.GeneratedAt:yyyy-MM-dd HH:mm}",
             headerTitle: "Intune Monitor – Export Summary",
             subtitle: $"Exported {HtmlReportHelpers.Encode(report.GeneratedAt.ToString("yyyy-MM-dd HH:mm:ss"))} UTC &middot; Tenant: <strong>{HtmlReportHelpers.Encode(report.TenantName)}</strong>",
             subtitle2: $"Storage: {HtmlReportHelpers.Encode(report.StorageType)} &middot; Path: <code>{HtmlReportHelpers.Encode(report.BackupPath)}</code>",

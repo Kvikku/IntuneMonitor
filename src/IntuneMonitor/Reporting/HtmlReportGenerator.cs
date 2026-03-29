@@ -14,7 +14,7 @@ public static class HtmlReportGenerator
         var sb = new StringBuilder();
 
         HtmlReportHelpers.AppendDocumentHead(sb,
-            pageTitle: $"Intune Monitor – Change Report {HtmlReportHelpers.Encode(report.GeneratedAt.ToString("yyyy-MM-dd HH:mm"))}",
+            pageTitle: $"Intune Monitor – Change Report {report.GeneratedAt:yyyy-MM-dd HH:mm}",
             headerTitle: "Intune Monitor – Change Report",
             subtitle: $"Generated {HtmlReportHelpers.Encode(report.GeneratedAt.ToString("yyyy-MM-dd HH:mm:ss"))} UTC &middot; Tenant: <strong>{HtmlReportHelpers.Encode(report.TenantName)}</strong>");
 

@@ -38,7 +38,7 @@ internal static class ReportWriter
 
     /// <summary>
     /// Opens the specified file in the default browser/application.
-    /// Errors are silently caught (opening a browser is non-critical).
+    /// Errors are caught and logged as warnings (opening a browser is non-critical).
     /// </summary>
     public static void OpenInBrowser(string outputPath, ILogger logger)
     {

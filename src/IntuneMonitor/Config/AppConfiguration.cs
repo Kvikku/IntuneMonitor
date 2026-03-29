@@ -14,6 +14,9 @@ public class AppConfiguration
     /// <summary>Monitoring and scheduling settings.</summary>
     public MonitorConfig Monitor { get; set; } = new();
 
+    /// <summary>Audit log settings.</summary>
+    public AuditLogConfig AuditLog { get; set; } = new();
+
     /// <summary>List of content types to process. Defaults to all when empty.</summary>
     public List<string> ContentTypes { get; set; } = new();
 }
@@ -146,6 +149,17 @@ public class MonitorConfig
 
     /// <summary>
     /// When true, automatically opens the HTML report in the default browser after generation.
+    /// </summary>
+    public bool OpenHtmlReport { get; set; } = true;
+}
+
+/// <summary>
+/// Audit log configuration.
+/// </summary>
+public class AuditLogConfig
+{
+    /// <summary>
+    /// When true, automatically opens the HTML audit report in the default browser after generation.
     /// </summary>
     public bool OpenHtmlReport { get; set; } = true;
 }

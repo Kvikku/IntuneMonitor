@@ -14,7 +14,7 @@ public static class HtmlAuditReportGenerator
         var sb = new StringBuilder();
 
         HtmlReportHelpers.AppendDocumentHead(sb,
-            pageTitle: $"Intune Audit Log Report – {HtmlReportHelpers.Encode(report.GeneratedAt.ToString("yyyy-MM-dd HH:mm"))}",
+            pageTitle: $"Intune Audit Log Report – {report.GeneratedAt:yyyy-MM-dd HH:mm}",
             headerTitle: "Intune Audit Log Report",
             subtitle: $"Generated {HtmlReportHelpers.Encode(report.GeneratedAt.ToString("yyyy-MM-dd HH:mm:ss"))} UTC &middot; " +
                       $"Period: <strong>{HtmlReportHelpers.Encode(report.PeriodStart.ToString("yyyy-MM-dd"))}</strong> to <strong>{HtmlReportHelpers.Encode(report.PeriodEnd.ToString("yyyy-MM-dd"))}</strong> " +
