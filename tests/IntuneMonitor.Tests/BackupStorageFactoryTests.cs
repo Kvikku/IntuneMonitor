@@ -69,9 +69,9 @@ public class BackupStorageFactoryTests
     public void Create_UnknownType_ThrowsNotSupported()
     {
         var ex = Assert.Throws<NotSupportedException>(() =>
-            BackupStorageFactory.Create(MakeConfig("AzureBlob")));
+            BackupStorageFactory.Create(MakeConfig("CosmosDB")));
 
-        Assert.Contains("azureblob", ex.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("cosmosdb", ex.Message, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("Supported values", ex.Message);
     }
 }

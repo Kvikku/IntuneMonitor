@@ -21,7 +21,11 @@ public class IntuneExporter
     /// <summary>Content types that do not support an /assignments sub-resource.</summary>
     private static readonly HashSet<string> NoAssignmentsTypes = new(StringComparer.OrdinalIgnoreCase)
     {
-        IntuneContentTypes.AssignmentFilter
+        IntuneContentTypes.AssignmentFilter,
+        IntuneContentTypes.ConditionalAccessPolicy,
+        IntuneContentTypes.RoleDefinition,
+        IntuneContentTypes.NamedLocation,
+        IntuneContentTypes.EnrollmentRestriction,
     };
 
     /// <summary>Well-known virtual group IDs used by Intune.</summary>
@@ -254,7 +258,8 @@ public class IntuneExporter
         contentType.Equals(IntuneContentTypes.SettingsCatalog, StringComparison.OrdinalIgnoreCase) ||
         contentType.Equals(IntuneContentTypes.PowerShellScript, StringComparison.OrdinalIgnoreCase) ||
         contentType.Equals(IntuneContentTypes.ProactiveRemediation, StringComparison.OrdinalIgnoreCase) ||
-        contentType.Equals(IntuneContentTypes.MacOSShellScript, StringComparison.OrdinalIgnoreCase);
+        contentType.Equals(IntuneContentTypes.MacOSShellScript, StringComparison.OrdinalIgnoreCase) ||
+        contentType.Equals(IntuneContentTypes.EndpointSecurityPolicy, StringComparison.OrdinalIgnoreCase);
 
     /// <summary>
     /// Fetches the /assignments sub-resource for a policy, resolves group IDs to

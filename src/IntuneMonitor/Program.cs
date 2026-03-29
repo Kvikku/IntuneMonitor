@@ -224,6 +224,139 @@ listTypesCommand.SetHandler((context) =>
 });
 
 // ---------------------------------------------------------------------------
+// diff command – compare two backup snapshots offline
+// ---------------------------------------------------------------------------
+var diffCommand = new Command("diff",
+    "Compare two backup snapshots to detect differences (no Graph API access required).");
+var diffSourceOption = new Option<string>(
+    "--source", "Path to the source (baseline) backup.") { IsRequired = true };
+var diffTargetOption = new Option<string>(
+    "--target", "Path to the target (current) backup.") { IsRequired = true };
+var diffHtmlReportOption = new Option<string?>(
+    "--html-report", "Path to write an HTML diff report.");
+var diffJsonReportOption = new Option<string?>(
+    "--json-report", "Path to write a JSON diff report.");
+diffCommand.AddOption(diffSourceOption);
+diffCommand.AddOption(diffTargetOption);
+diffCommand.AddOption(diffHtmlReportOption);
+diffCommand.AddOption(diffJsonReportOption);
+rootCommand.AddCommand(diffCommand);
+
+diffCommand.SetHandler(async (context) =>
+{
+    var logLevel = context.ParseResult.GetValueForOption(verbosityOption);
+    using var loggerFactory = CreateLoggerFactory(logLevel);
+
+    var types = context.ParseResult.GetValueForOption(contentTypesOption);
+    var source = context.ParseResult.GetValueForOption(diffSourceOption)!;
+    var target = context.ParseResult.GetValueForOption(diffTargetOption)!;
+    var htmlPath = context.ParseResult.GetValueForOption(diffHtmlReportOption);
+    var jsonPath = context.ParseResult.GetValueForOption(diffJsonReportOption);
+
+    var cmd = new DiffCommand(appConfig, loggerFactory);
+    await cmd.RunAsync(source, target, types?.Length > 0 ? types : null, htmlPath, jsonPath);
+});
+
+// ---------------------------------------------------------------------------
+// rollback command – revert drift by restoring backed-up state
+// ---------------------------------------------------------------------------
+var rollbackCommand = new Command("rollback",
+    "Detect configuration drift and revert modified/removed policies to their backed-up state.");
+var rollbackDryRunOption = new Option<bool>(
+    "--dry-run", "Preview rollback actions without making changes.");
+rollbackCommand.AddOption(rollbackDryRunOption);
+rootCommand.AddCommand(rollbackCommand);
+
+rollbackCommand.SetHandler(async (context) =>
+{
+    ApplyGlobalOverrides(appConfig, context.ParseResult,
+        tenantIdOption, clientIdOption, clientSecretOption,
+        certPathOption, certPasswordOption, certThumbprintOption, backupPathOption);
+
+    var logLevel = context.ParseResult.GetValueForOption(verbosityOption);
+    using var loggerFactory = CreateLoggerFactory(logLevel);
+
+    var types = context.ParseResult.GetValueForOption(contentTypesOption);
+    var dryRun = context.ParseResult.GetValueForOption(rollbackDryRunOption);
+
+    var cmd = new RollbackCommand(appConfig, loggerFactory);
+    await cmd.RunAsync(types?.Length > 0 ? types : null, dryRun);
+});
+
+// ---------------------------------------------------------------------------
+// dependency command – analyze policy relationships
+// ---------------------------------------------------------------------------
+var dependencyCommand = new Command("dependency",
+    "Analyze policy relationships and dependencies from backup data.");
+var depJsonReportOption = new Option<string?>(
+    "--json-report", "Path to write a JSON dependency report.");
+dependencyCommand.AddOption(depJsonReportOption);
+rootCommand.AddCommand(dependencyCommand);
+
+dependencyCommand.SetHandler(async (context) =>
+{
+    ApplyGlobalOverrides(appConfig, context.ParseResult,
+        tenantIdOption, clientIdOption, clientSecretOption,
+        certPathOption, certPasswordOption, certThumbprintOption, backupPathOption);
+
+    var logLevel = context.ParseResult.GetValueForOption(verbosityOption);
+    using var loggerFactory = CreateLoggerFactory(logLevel);
+
+    var types = context.ParseResult.GetValueForOption(contentTypesOption);
+    var jsonPath = context.ParseResult.GetValueForOption(depJsonReportOption);
+
+    var cmd = new DependencyCommand(appConfig, loggerFactory);
+    await cmd.RunAsync(types?.Length > 0 ? types : null, jsonPath);
+});
+
+// ---------------------------------------------------------------------------
+// validate command – validate backup integrity before import
+// ---------------------------------------------------------------------------
+var validateCommand = new Command("validate",
+    "Validate backup files for integrity and import readiness.");
+rootCommand.AddCommand(validateCommand);
+
+validateCommand.SetHandler(async (context) =>
+{
+    ApplyGlobalOverrides(appConfig, context.ParseResult,
+        tenantIdOption, clientIdOption, clientSecretOption,
+        certPathOption, certPasswordOption, certThumbprintOption, backupPathOption);
+
+    var logLevel = context.ParseResult.GetValueForOption(verbosityOption);
+    using var loggerFactory = CreateLoggerFactory(logLevel);
+
+    var storage = IntuneMonitor.Storage.BackupStorageFactory.Create(appConfig.Backup, loggerFactory);
+    var validator = new IntuneMonitor.Storage.BackupValidator(
+        loggerFactory.CreateLogger<IntuneMonitor.Storage.BackupValidator>());
+
+    var results = await validator.ValidateStorageAsync(storage);
+    var allValid = true;
+
+    foreach (var (contentType, result) in results)
+    {
+        if (result.IsValid)
+        {
+            ConsoleUI.Success($"{contentType}: Valid ({result.Warnings.Count} warning(s))");
+        }
+        else
+        {
+            ConsoleUI.Error($"{contentType}: Invalid — {result.Errors.Count} error(s)");
+            foreach (var error in result.Errors)
+                ConsoleUI.Error($"  {error}");
+            allValid = false;
+        }
+
+        foreach (var warning in result.Warnings)
+            ConsoleUI.Warning($"  {warning}");
+    }
+
+    if (allValid)
+        ConsoleUI.Success("All backups are valid");
+    else
+        ConsoleUI.Error("Some backups have validation errors");
+});
+
+// ---------------------------------------------------------------------------
 // Run – interactive menu when no args, CLI otherwise
 // ---------------------------------------------------------------------------
 if (args.Length == 0)

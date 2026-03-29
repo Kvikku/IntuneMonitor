@@ -5,6 +5,7 @@ using IntuneMonitor.Comparison;
 using IntuneMonitor.Config;
 using IntuneMonitor.Graph;
 using IntuneMonitor.Models;
+using IntuneMonitor.Notifications;
 using IntuneMonitor.Reporting;
 using IntuneMonitor.Storage;
 using IntuneMonitor.UI;
@@ -116,6 +117,9 @@ public class MonitorCommand
         var reportTimestamp = DateTime.UtcNow.ToString("yyyy-MM-dd_HHmmss");
         await WriteReportAsync(report, reportTimestamp, cancellationToken);
         await WriteHtmlReportAsync(report, reportTimestamp, cancellationToken);
+
+        // Send notifications if configured
+        await SendNotificationsAsync(report, cancellationToken);
 
         return report;
     }
@@ -275,4 +279,20 @@ public class MonitorCommand
         value == null ? "(null)" :
         value.Length <= maxLength ? value :
         value[..maxLength] + "...";
+
+    private async Task SendNotificationsAsync(ChangeReport report, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var senders = NotificationFactory.Create(_config.Notifications, _loggerFactory);
+            if (senders.Count == 0) return;
+
+            var service = new NotificationService(senders, _loggerFactory.CreateLogger<NotificationService>());
+            await service.NotifyAsync(report, cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to send notifications");
+        }
+    }
 }
