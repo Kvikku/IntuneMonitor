@@ -8,9 +8,9 @@ namespace IntuneMonitor.Tests;
 public class IntuneContentTypesTests
 {
     [Fact]
-    public void All_ContainsExpected13Types()
+    public void All_ContainsExpected20Types()
     {
-        Assert.Equal(13, IntuneContentTypes.All.Count);
+        Assert.Equal(20, IntuneContentTypes.All.Count);
     }
 
     [Fact]
@@ -50,7 +50,9 @@ public class IntuneContentTypesTests
         {
             Assert.True(
                 endpoint.StartsWith("deviceManagement/", StringComparison.Ordinal) ||
-                endpoint.StartsWith("deviceEnrollment/", StringComparison.Ordinal),
+                endpoint.StartsWith("deviceEnrollment/", StringComparison.Ordinal) ||
+                endpoint.StartsWith("deviceAppManagement/", StringComparison.Ordinal) ||
+                endpoint.StartsWith("identity/", StringComparison.Ordinal),
                 $"Endpoint for {type} has unexpected prefix: {endpoint}");
         }
     }

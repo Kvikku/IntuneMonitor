@@ -23,9 +23,10 @@ public static class BackupStorageFactory
         return config.StorageType?.ToLowerInvariant() switch
         {
             "git" => new GitStorage(config, factory.CreateLogger<GitStorage>()),
+            "azureblob" => new AzureBlobStorage(config, factory.CreateLogger<AzureBlobStorage>()),
             "localfile" or null or "" => new LocalFileStorage(config, factory.CreateLogger<LocalFileStorage>()),
             var unknown => throw new NotSupportedException(
-                $"Unknown storage type '{unknown}'. Supported values: 'LocalFile', 'Git'.")
+                $"Unknown storage type '{unknown}'. Supported values: 'LocalFile', 'Git', 'AzureBlob'.")
         };
     }
 }
