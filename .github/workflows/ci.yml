@@ -8,6 +8,8 @@ on:
 
 permissions:
   contents: read
+  checks: write
+  pull-requests: write
 
 jobs:
   build:
@@ -21,14 +23,36 @@ jobs:
         with:
           dotnet-version: '8.0.x'
 
+      - name: Cache NuGet packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.nuget/packages
+          key: ${{ runner.os }}-nuget-${{ hashFiles('**/*.csproj') }}
+          restore-keys: |
+            ${{ runner.os }}-nuget-
+
       - name: Restore dependencies
         run: dotnet restore
+
+      - name: Check formatting
+        run: dotnet format --verify-no-changes --verbosity normal
 
       - name: Build
         run: dotnet build --no-restore -c Release
 
-      - name: Test
-        run: dotnet test --no-build -c Release --verbosity normal --logger "trx;LogFileName=test-results.trx"
+      - name: Check for vulnerable packages
+        run: |
+          dotnet list package --vulnerable --include-transitive 2>&1 | tee vulnerability-report.txt
+          if grep -q "has the following vulnerable packages" vulnerability-report.txt; then
+            echo "::warning::Vulnerable packages detected. Review the output above."
+          fi
+
+      - name: Test with coverage
+        run: >
+          dotnet test --no-build -c Release --verbosity normal
+          --logger "trx;LogFileName=test-results.trx"
+          --collect:"XPlat Code Coverage"
+          --results-directory TestResults
 
       - name: Upload test results
         if: always()
@@ -37,3 +61,19 @@ jobs:
           name: test-results
           path: '**/TestResults/**/*.trx'
           retention-days: 30
+
+      - name: Upload coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: '**/TestResults/**/coverage.cobertura.xml'
+          retention-days: 30
+
+      - name: Test report
+        if: always()
+        uses: dorny/test-reporter@v1
+        with:
+          name: Test Results
+          path: '**/TestResults/**/*.trx'
+          reporter: dotnet-trx

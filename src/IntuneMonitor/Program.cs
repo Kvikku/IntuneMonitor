@@ -48,7 +48,7 @@ var contentTypesOption = new Option<string[]>(
     "--content-types",
     () => Array.Empty<string>(),
     $"Content types to process. Available: {string.Join(", ", IntuneContentTypes.All)}")
-    { AllowMultipleArgumentsPerToken = false };
+{ AllowMultipleArgumentsPerToken = false };
 var verbosityOption = new Option<LogLevel>(
     "--verbosity",
     () => LogLevel.Information,
@@ -229,9 +229,11 @@ listTypesCommand.SetHandler((context) =>
 var diffCommand = new Command("diff",
     "Compare two backup snapshots to detect differences (no Graph API access required).");
 var diffSourceOption = new Option<string>(
-    "--source", "Path to the source (baseline) backup.") { IsRequired = true };
+    "--source", "Path to the source (baseline) backup.")
+{ IsRequired = true };
 var diffTargetOption = new Option<string>(
-    "--target", "Path to the target (current) backup.") { IsRequired = true };
+    "--target", "Path to the target (current) backup.")
+{ IsRequired = true };
 var diffHtmlReportOption = new Option<string?>(
     "--html-report", "Path to write an HTML diff report.");
 var diffJsonReportOption = new Option<string?>(
