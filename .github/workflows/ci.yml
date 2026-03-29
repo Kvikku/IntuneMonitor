@@ -43,8 +43,11 @@ jobs:
       - name: Check for vulnerable packages
         run: |
           dotnet list package --vulnerable --include-transitive 2>&1 | tee vulnerability-report.txt
-          if grep -q "has the following vulnerable packages" vulnerability-report.txt; then
-            echo "::warning::Vulnerable packages detected. Review the output above."
+          if grep -qi "Critical\|High" vulnerability-report.txt; then
+            echo "::error::Critical or High severity vulnerable packages detected."
+            exit 1
+          elif grep -q "has the following vulnerable packages" vulnerability-report.txt; then
+            echo "::warning::Vulnerable packages detected (low/moderate severity). Review the output above."
           fi
 
       - name: Test with coverage
