@@ -140,6 +140,7 @@ public class RollbackCommand
 
         // Perform rollback
         var importer = new IntuneImporter(credential, graphFactory);
+        var importer = new IntuneImporter(credential, _loggerFactory);
         int successCount = 0;
         int errorCount = 0;
 

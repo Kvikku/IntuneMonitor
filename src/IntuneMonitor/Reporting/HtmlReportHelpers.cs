@@ -28,6 +28,36 @@ internal static class HtmlReportHelpers
         sb.AppendLine("</div>");
     }
 
+    /// <summary>Appends a "no data" placeholder section.</summary>
+    public static void AppendNoDataSection(StringBuilder sb, string message)
+    {
+        sb.AppendLine($"<section class=\"no-changes\"><p>{Encode(message)}</p></section>");
+    }
+
+    /// <summary>
+    /// Appends a breakdown table with name/count pairs, sorted by count descending.
+    /// Used by audit and similar reports for activity type, component, and actor breakdowns.
+    /// </summary>
+    public static void AppendBreakdownTable(StringBuilder sb, string title, Dictionary<string, int> data)
+    {
+        sb.AppendLine("<section class=\"content-type\">");
+        sb.AppendLine($"<h2>{Encode(title)} <span class=\"badge\">{data.Count}</span></h2>");
+        sb.AppendLine("<table>");
+        sb.AppendLine("<thead><tr><th>Name</th><th>Count</th></tr></thead>");
+        sb.AppendLine("<tbody>");
+
+        foreach (var (name, count) in data.OrderByDescending(kv => kv.Value))
+        {
+            sb.AppendLine("<tr>");
+            sb.AppendLine($"<td class=\"policy-name\">{Encode(name)}</td>");
+            sb.AppendLine($"<td>{count}</td>");
+            sb.AppendLine("</tr>");
+        }
+
+        sb.AppendLine("</tbody></table>");
+        sb.AppendLine("</section>");
+    }
+
     /// <summary>
     /// Appends the standard HTML document opening: DOCTYPE, head, meta, styles, body,
     /// header with title/subtitle/theme toggle.
@@ -78,6 +108,19 @@ internal static class HtmlReportHelpers
         sb.AppendLine("</script>");
         sb.AppendLine("</body>");
         sb.AppendLine("</html>");
+    }
+
+    /// <summary>
+    /// Generates HTML from a builder delegate and writes it to a file.
+    /// Consolidates the Generate → Write pattern used by all report generators.
+    /// </summary>
+    public static async Task GenerateAndWriteAsync(
+        Func<string> generateHtml,
+        string outputPath,
+        CancellationToken cancellationToken = default)
+    {
+        var html = generateHtml();
+        await WriteHtmlAsync(html, outputPath, cancellationToken);
     }
 
     /// <summary>

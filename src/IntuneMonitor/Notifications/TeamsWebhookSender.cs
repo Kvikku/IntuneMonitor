@@ -1,6 +1,3 @@
-using System.Text;
-using System.Text.Json;
-
 namespace IntuneMonitor.Notifications;
 
 using IntuneMonitor.Config;
@@ -11,17 +8,9 @@ using Microsoft.Extensions.Logging;
 /// Sends drift detection notifications to Microsoft Teams via an incoming webhook.
 /// Posts an Adaptive Card with a summary of detected changes.
 /// </summary>
-public class TeamsWebhookSender : INotificationSender
+public class TeamsWebhookSender : WebhookNotificationSender
 {
     private readonly TeamsWebhookConfig _config;
-    private readonly ILogger<TeamsWebhookSender> _logger;
-    private readonly HttpClient _httpClient;
-
-    private static readonly JsonSerializerOptions JsonOptions = new()
-    {
-        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-        WriteIndented = false
-    };
 
     /// <summary>
     /// Initializes a new instance of the <see cref="TeamsWebhookSender"/> class.
@@ -30,35 +19,19 @@ public class TeamsWebhookSender : INotificationSender
     /// <param name="logger">Logger instance.</param>
     /// <param name="httpClient">Optional HttpClient for testing.</param>
     public TeamsWebhookSender(TeamsWebhookConfig config, ILogger<TeamsWebhookSender> logger, HttpClient? httpClient = null)
+        : base(logger, httpClient)
     {
         _config = config ?? throw new ArgumentNullException(nameof(config));
-        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
-        _httpClient = httpClient ?? new HttpClient();
     }
 
     /// <inheritdoc />
-    public string ChannelName => "Microsoft Teams";
+    public override string ChannelName => "Microsoft Teams";
 
     /// <inheritdoc />
-    public async Task SendAsync(ChangeReport report, CancellationToken cancellationToken = default)
-    {
-        _logger.LogDebug("Building Teams Adaptive Card for {ChangeCount} change(s)", report.TotalCount);
+    protected override string WebhookUrl => _config.WebhookUrl;
 
-        var card = BuildAdaptiveCard(report);
-        var payload = JsonSerializer.Serialize(card, JsonOptions);
-
-        using var content = new StringContent(payload, Encoding.UTF8, "application/json");
-        using var response = await _httpClient.PostAsync(_config.WebhookUrl, content, cancellationToken);
-
-        if (!response.IsSuccessStatusCode)
-        {
-            var body = await response.Content.ReadAsStringAsync(cancellationToken);
-            _logger.LogError("Teams webhook returned {StatusCode}: {Body}", (int)response.StatusCode, body);
-            response.EnsureSuccessStatusCode();
-        }
-
-        _logger.LogDebug("Teams webhook accepted the notification");
-    }
+    /// <inheritdoc />
+    protected override object BuildPayload(ChangeReport report) => BuildAdaptiveCard(report);
 
     // ----------------------------------------------------------------
     // Private helpers
