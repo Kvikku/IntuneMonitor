@@ -161,9 +161,18 @@ public class RollbackCommand
             {
                 _logger.LogInformation("Rolling back {Icon} {ContentType}: {PolicyName}...",
                     icon, change.ContentType, change.PolicyName);
-                await importer.ImportItemAsync(item, cancellationToken);
-                successCount++;
-                _logger.LogInformation("  → Rolled back successfully");
+                var result = await importer.ImportItemAsync(item, cancellationToken);
+                if (result.Success)
+                {
+                    successCount++;
+                    _logger.LogInformation("  → Rolled back successfully");
+                }
+                else
+                {
+                    _logger.LogError("  → Rollback failed for '{PolicyName}': {ErrorMessage}",
+                        change.PolicyName, result.ErrorMessage);
+                    errorCount++;
+                }
             }
             catch (Exception ex)
             {
