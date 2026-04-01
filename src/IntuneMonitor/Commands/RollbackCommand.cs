@@ -139,8 +139,7 @@ public class RollbackCommand
         _logger.LogInformation("Found {DriftCount} drifted policies to roll back", rollbackItems.Count);
 
         // Perform rollback
-        var importer = new IntuneImporter(credential, graphFactory);
-        var importer = new IntuneImporter(credential, _loggerFactory);
+        var importer = new IntuneImporter(credential, graphFactory, _loggerFactory);
         int successCount = 0;
         int errorCount = 0;
 
