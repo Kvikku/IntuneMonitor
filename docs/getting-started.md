@@ -14,11 +14,13 @@ Register an application in **Microsoft Entra ID** → **App registrations** and 
 | Permission | Needed for |
 |---|---|
 | `DeviceManagementConfiguration.Read.All` | Export & Monitor |
-| `DeviceManagementConfiguration.ReadWrite.All` | Import |
-| `DeviceManagementApps.Read.All` | Export & Monitor |
+| `DeviceManagementConfiguration.ReadWrite.All` | Import & Rollback |
+| `DeviceManagementApps.Read.All` | Export & Monitor (App Protection/Config) |
 | `DeviceManagementManagedDevices.Read.All` | Export & Monitor |
 | `DeviceManagementServiceConfig.Read.All` | Export & Monitor |
-| `DeviceManagementRBAC.Read.All` | Audit Log |
+| `DeviceManagementRBAC.Read.All` | Audit Log & Role Definitions |
+| `Policy.Read.All` | Conditional Access Policies & Named Locations |
+| `Policy.ReadWrite.ConditionalAccess` | Import Conditional Access Policies |
 
 > [!IMPORTANT]
 > After adding permissions, click **Grant admin consent** in the Azure Portal.
