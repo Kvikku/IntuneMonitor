@@ -1,6 +1,7 @@
 using System.Text.Json;
 using IntuneMonitor.Graph;
 using IntuneMonitor.Models;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace IntuneMonitor.Tests;
 
@@ -68,6 +69,16 @@ public class IntuneImporterPayloadTests
     [Fact]
     public void IntuneImporter_NullCredential_Throws()
     {
-        Assert.Throws<ArgumentNullException>(() => new IntuneImporter(null!));
+        var factory = new GraphClientFactory(
+            new ServiceCollection().AddHttpClient().BuildServiceProvider()
+                .GetRequiredService<IHttpClientFactory>());
+        Assert.Throws<ArgumentNullException>(() => new IntuneImporter(null!, factory));
+    }
+
+    [Fact]
+    public void IntuneImporter_NullGraphClientFactory_Throws()
+    {
+        var credential = new Azure.Identity.ClientSecretCredential("tenant", "client", "secret");
+        Assert.Throws<ArgumentNullException>(() => new IntuneImporter(credential, null!));
     }
 }

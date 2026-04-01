@@ -1,6 +1,7 @@
 using IntuneMonitor.Commands;
 using IntuneMonitor.Config;
 using IntuneMonitor.Models;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace IntuneMonitor.Tests;
 
@@ -10,6 +11,13 @@ namespace IntuneMonitor.Tests;
 /// </summary>
 public class MonitorCommandHelperTests
 {
+    private static IHttpClientFactory CreateHttpClientFactory()
+    {
+        var services = new ServiceCollection();
+        services.AddHttpClient();
+        return services.BuildServiceProvider().GetRequiredService<IHttpClientFactory>();
+    }
+
     // -----------------------------------------------------------------------
     // ParseSeverity (accessed indirectly through MonitorCommand behavior)
     // Since ParseSeverity and Truncate are private static, we test them through
@@ -51,14 +59,23 @@ public class MonitorCommandHelperTests
     [Fact]
     public void MonitorCommand_NullConfig_Throws()
     {
-        Assert.Throws<ArgumentNullException>(() => new MonitorCommand(null!));
+        var factory = CreateHttpClientFactory();
+        Assert.Throws<ArgumentNullException>(() => new MonitorCommand(null!, factory));
+    }
+
+    [Fact]
+    public void MonitorCommand_NullHttpClientFactory_Throws()
+    {
+        var config = new AppConfiguration();
+        Assert.Throws<ArgumentNullException>(() => new MonitorCommand(config, null!));
     }
 
     [Fact]
     public void MonitorCommand_ValidConfig_DoesNotThrow()
     {
         var config = new AppConfiguration();
-        var command = new MonitorCommand(config);
+        var factory = CreateHttpClientFactory();
+        var command = new MonitorCommand(config, factory);
         Assert.NotNull(command);
     }
 }

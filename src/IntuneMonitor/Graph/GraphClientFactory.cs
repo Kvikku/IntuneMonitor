@@ -5,18 +5,28 @@ namespace IntuneMonitor.Graph;
 
 /// <summary>
 /// Centralizes access-token acquisition and <see cref="HttpClient"/> creation for
-/// Microsoft Graph API calls. Eliminates duplicated token/client code across Graph classes.
+/// Microsoft Graph API calls. Uses <see cref="IHttpClientFactory"/> for proper
+/// connection pooling and lifecycle management.
 /// </summary>
-internal static class GraphClientFactory
+public class GraphClientFactory
 {
+    /// <summary>Named client identifier used with <see cref="IHttpClientFactory"/>.</summary>
+    public const string HttpClientName = "Graph";
+
     private static readonly string[] Scopes = { "https://graph.microsoft.com/.default" };
+    private readonly IHttpClientFactory _httpClientFactory;
+
+    public GraphClientFactory(IHttpClientFactory httpClientFactory)
+    {
+        _httpClientFactory = httpClientFactory ?? throw new ArgumentNullException(nameof(httpClientFactory));
+    }
 
     /// <summary>
     /// Acquires a bearer token from the provided credential and returns
     /// a configured <see cref="HttpClient"/> ready for Graph API calls.
     /// The caller is responsible for disposing the returned client.
     /// </summary>
-    public static async Task<HttpClient> CreateAuthenticatedClientAsync(
+    public async Task<HttpClient> CreateAuthenticatedClientAsync(
         TokenCredential credential,
         CancellationToken cancellationToken = default)
     {
@@ -37,16 +47,15 @@ internal static class GraphClientFactory
     }
 
     /// <summary>
-    /// Creates an <see cref="HttpClient"/> pre-configured with the provided bearer token
-    /// and JSON accept header.
+    /// Creates an <see cref="HttpClient"/> from the factory, pre-configured with
+    /// the provided bearer token. The Accept header is configured at client registration
+    /// time in Program.cs via <c>AddHttpClient(HttpClientName, ...)</c>.
     /// </summary>
-    public static HttpClient CreateHttpClient(string bearerToken)
+    public HttpClient CreateHttpClient(string bearerToken)
     {
-        var client = new HttpClient();
+        var client = _httpClientFactory.CreateClient(HttpClientName);
         client.DefaultRequestHeaders.Authorization =
             new AuthenticationHeaderValue("Bearer", bearerToken);
-        client.DefaultRequestHeaders.Accept.Add(
-            new MediaTypeWithQualityHeaderValue("application/json"));
         return client;
     }
 }

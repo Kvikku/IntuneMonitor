@@ -1,3 +1,5 @@
+using System.Net;
+using System.Net.Http.Headers;
 using System.Text.Json;
 using Azure.Core;
 using IntuneMonitor.Models;
@@ -12,21 +14,28 @@ namespace IntuneMonitor.Graph;
 public class IntuneImporter
 {
     private readonly TokenCredential _credential;
+    private readonly GraphClientFactory _graphClientFactory;
     private readonly ILogger<IntuneImporter> _logger;
 
-    public IntuneImporter(TokenCredential credential, ILoggerFactory? loggerFactory = null)
+    public IntuneImporter(
+        TokenCredential credential,
+        GraphClientFactory graphClientFactory,
+        ILoggerFactory? loggerFactory = null)
     {
         _credential = credential ?? throw new ArgumentNullException(nameof(credential));
+        _graphClientFactory = graphClientFactory ?? throw new ArgumentNullException(nameof(graphClientFactory));
         _logger = (loggerFactory ?? NullLoggerFactory.Instance).CreateLogger<IntuneImporter>();
     }
 
     /// <summary>
     /// Imports a single Intune item into the target tenant.
+    /// Returns a structured <see cref="ImportResult"/> with detailed error information
+    /// instead of throwing on failure.
     /// </summary>
     /// <param name="item">The item to import (must have PolicyData set).</param>
     /// <param name="cancellationToken">Cancellation token.</param>
-    /// <returns>The name of the imported policy, or null if the import failed.</returns>
-    public async Task<string?> ImportItemAsync(IntuneItem item, CancellationToken cancellationToken = default)
+    /// <returns>An <see cref="ImportResult"/> indicating success or failure with details.</returns>
+    public async Task<ImportResult> ImportItemAsync(IntuneItem item, CancellationToken cancellationToken = default)
     {
         if (item.PolicyData == null)
             throw new ArgumentException("Item must have PolicyData set to import.", nameof(item));
@@ -40,24 +49,30 @@ public class IntuneImporter
         var url = $"https://graph.microsoft.com/beta/{endpoint}";
         var token = await GraphClientFactory.GetAccessTokenAsync(_credential, cancellationToken);
 
-        using var httpClient = GraphClientFactory.CreateHttpClient(token);
+        using var httpClient = _graphClientFactory.CreateHttpClient(token);
 
         using var content = new StringContent(
             JsonSerializer.Serialize(payload),
             System.Text.Encoding.UTF8,
             "application/json");
 
-        using var response = await GraphRetryHandler.PostWithRetryAsync(
-            httpClient, url, content, _logger, cancellationToken);
-
-        if (!response.IsSuccessStatusCode)
+        try
         {
-            var error = await response.Content.ReadAsStringAsync(cancellationToken);
-            throw new InvalidOperationException(
-                $"Failed to import '{item.Name}' ({response.StatusCode}): {error}");
-        }
+            using var response = await GraphRetryHandler.PostWithRetryAsync(
+                httpClient, url, content, _logger, cancellationToken);
 
-        return item.Name;
+            if (response.IsSuccessStatusCode)
+            {
+                return ImportResult.Succeeded(item.Name);
+            }
+
+            var errorBody = await response.Content.ReadAsStringAsync(cancellationToken);
+            return ImportResult.Failed(item.Name, response.StatusCode, errorBody);
+        }
+        catch (HttpRequestException ex)
+        {
+            return ImportResult.FailedWithException(item.Name, ex);
+        }
     }
 
     // -------------------------------------------------------------------------
