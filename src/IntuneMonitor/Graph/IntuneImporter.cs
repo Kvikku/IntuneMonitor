@@ -1,3 +1,4 @@
+using System.Net;
 using System.Net.Http.Headers;
 using System.Text.Json;
 using Azure.Core;
@@ -11,19 +12,23 @@ namespace IntuneMonitor.Graph;
 public class IntuneImporter
 {
     private readonly TokenCredential _credential;
+    private readonly GraphClientFactory _graphClientFactory;
 
-    public IntuneImporter(TokenCredential credential)
+    public IntuneImporter(TokenCredential credential, GraphClientFactory graphClientFactory)
     {
         _credential = credential ?? throw new ArgumentNullException(nameof(credential));
+        _graphClientFactory = graphClientFactory ?? throw new ArgumentNullException(nameof(graphClientFactory));
     }
 
     /// <summary>
     /// Imports a single Intune item into the target tenant.
+    /// Returns a structured <see cref="ImportResult"/> with detailed error information
+    /// instead of throwing on failure.
     /// </summary>
     /// <param name="item">The item to import (must have PolicyData set).</param>
     /// <param name="cancellationToken">Cancellation token.</param>
-    /// <returns>The name of the imported policy, or null if the import failed.</returns>
-    public async Task<string?> ImportItemAsync(IntuneItem item, CancellationToken cancellationToken = default)
+    /// <returns>An <see cref="ImportResult"/> indicating success or failure with details.</returns>
+    public async Task<ImportResult> ImportItemAsync(IntuneItem item, CancellationToken cancellationToken = default)
     {
         if (item.PolicyData == null)
             throw new ArgumentException("Item must have PolicyData set to import.", nameof(item));
@@ -37,22 +42,30 @@ public class IntuneImporter
         var url = $"https://graph.microsoft.com/beta/{endpoint}";
         var token = await GraphClientFactory.GetAccessTokenAsync(_credential, cancellationToken);
 
-        using var httpClient = GraphClientFactory.CreateHttpClient(token);
+        using var httpClient = _graphClientFactory.CreateHttpClient(token);
 
         var content = new StringContent(
             JsonSerializer.Serialize(payload),
             System.Text.Encoding.UTF8,
             "application/json");
 
-        var response = await httpClient.PostAsync(url, content, cancellationToken);
-        if (!response.IsSuccessStatusCode)
+        HttpResponseMessage response;
+        try
         {
-            var error = await response.Content.ReadAsStringAsync(cancellationToken);
-            throw new InvalidOperationException(
-                $"Failed to import '{item.Name}' ({response.StatusCode}): {error}");
+            response = await httpClient.PostAsync(url, content, cancellationToken);
+        }
+        catch (HttpRequestException ex)
+        {
+            return ImportResult.FailedWithException(item.Name, ex);
         }
 
-        return item.Name;
+        if (response.IsSuccessStatusCode)
+        {
+            return ImportResult.Succeeded(item.Name);
+        }
+
+        var errorBody = await response.Content.ReadAsStringAsync(cancellationToken);
+        return ImportResult.Failed(item.Name, response.StatusCode, errorBody);
     }
 
     // -------------------------------------------------------------------------

@@ -18,10 +18,12 @@ public class ImportCommand
     private readonly AppConfiguration _config;
     private readonly ILogger<ImportCommand> _logger;
     private readonly ILoggerFactory _loggerFactory;
+    private readonly IHttpClientFactory _httpClientFactory;
 
-    public ImportCommand(AppConfiguration config, ILoggerFactory? loggerFactory = null)
+    public ImportCommand(AppConfiguration config, IHttpClientFactory httpClientFactory, ILoggerFactory? loggerFactory = null)
     {
         _config = config ?? throw new ArgumentNullException(nameof(config));
+        _httpClientFactory = httpClientFactory ?? throw new ArgumentNullException(nameof(httpClientFactory));
         _loggerFactory = loggerFactory ?? NullLoggerFactory.Instance;
         _logger = _loggerFactory.CreateLogger<ImportCommand>();
     }
@@ -73,9 +75,11 @@ public class ImportCommand
             return 0;
         }
 
-        var importer = new IntuneImporter(credential);
+        var graphFactory = new GraphClientFactory(_httpClientFactory);
+        var importer = new IntuneImporter(credential, graphFactory);
         int successCount = 0;
         int errorCount = 0;
+        var errors = new List<ImportResult>();
 
         foreach (var contentType in types)
         {
@@ -107,9 +111,18 @@ public class ImportCommand
 
                 try
                 {
-                    var imported = await importer.ImportItemAsync(item, cancellationToken);
-                    _logger.LogInformation("Imported: {ImportedName}", imported);
-                    successCount++;
+                    var result = await importer.ImportItemAsync(item, cancellationToken);
+                    if (result.Success)
+                    {
+                        _logger.LogInformation("Imported: {ImportedName}", result.PolicyName);
+                        successCount++;
+                    }
+                    else
+                    {
+                        LogImportError(result);
+                        errors.Add(result);
+                        errorCount++;
+                    }
                 }
                 catch (Exception ex)
                 {
@@ -119,8 +132,52 @@ public class ImportCommand
             }
         }
 
+        if (errors.Count > 0)
+            LogErrorSummary(errors);
+
         _logger.LogInformation("Import complete. {SuccessCount} succeeded, {ErrorCount} failed", successCount, errorCount);
         ConsoleUI.WriteImportSummary(successCount, errorCount);
         return successCount;
+    }
+
+    private void LogImportError(ImportResult result)
+    {
+        switch (result.ErrorCategory)
+        {
+            case ImportErrorCategory.Conflict:
+                _logger.LogWarning("Conflict importing '{PolicyName}': policy already exists. {ErrorMessage}",
+                    result.PolicyName, result.ErrorMessage);
+                break;
+            case ImportErrorCategory.ValidationError:
+                _logger.LogError("Validation error importing '{PolicyName}': {ErrorMessage}",
+                    result.PolicyName, result.ErrorMessage);
+                break;
+            case ImportErrorCategory.AuthenticationError:
+                _logger.LogError("Auth error importing '{PolicyName}': {ErrorMessage}",
+                    result.PolicyName, result.ErrorMessage);
+                break;
+            case ImportErrorCategory.Throttled:
+                _logger.LogWarning("Throttled importing '{PolicyName}': {ErrorMessage}",
+                    result.PolicyName, result.ErrorMessage);
+                break;
+            default:
+                _logger.LogError("Failed to import '{PolicyName}': {ErrorMessage}",
+                    result.PolicyName, result.ErrorMessage);
+                break;
+        }
+    }
+
+    private void LogErrorSummary(List<ImportResult> errors)
+    {
+        var grouped = errors.GroupBy(e => e.ErrorCategory);
+        _logger.LogWarning("Import error summary:");
+        foreach (var group in grouped)
+        {
+            _logger.LogWarning("  {Category}: {Count} error(s)", group.Key, group.Count());
+            foreach (var error in group)
+            {
+                _logger.LogWarning("    - {PolicyName}: {StatusCode}", error.PolicyName, error.StatusCode);
+            }
+        }
     }
 }

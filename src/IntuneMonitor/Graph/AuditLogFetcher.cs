@@ -15,6 +15,7 @@ namespace IntuneMonitor.Graph;
 public class AuditLogFetcher
 {
     private readonly TokenCredential _credential;
+    private readonly GraphClientFactory _graphClientFactory;
     private readonly ILogger<AuditLogFetcher> _logger;
 
     /// <summary>Maximum number of events per page to request from Graph.</summary>
@@ -32,9 +33,10 @@ public class AuditLogFetcher
     /// <summary>Small delay between page requests to reduce throttling risk.</summary>
     private static readonly TimeSpan PageRequestDelay = TimeSpan.FromMilliseconds(500);
 
-    public AuditLogFetcher(TokenCredential credential, ILoggerFactory? loggerFactory = null)
+    public AuditLogFetcher(TokenCredential credential, GraphClientFactory graphClientFactory, ILoggerFactory? loggerFactory = null)
     {
         _credential = credential ?? throw new ArgumentNullException(nameof(credential));
+        _graphClientFactory = graphClientFactory ?? throw new ArgumentNullException(nameof(graphClientFactory));
         _logger = (loggerFactory ?? NullLoggerFactory.Instance).CreateLogger<AuditLogFetcher>();
     }
 
@@ -52,7 +54,7 @@ public class AuditLogFetcher
             throw new ArgumentOutOfRangeException(nameof(days), days, "Days must be between 1 and 30.");
 
         var token = await GraphClientFactory.GetAccessTokenAsync(_credential, cancellationToken);
-        using var httpClient = GraphClientFactory.CreateHttpClient(token);
+        using var httpClient = _graphClientFactory.CreateHttpClient(token);
 
         var since = DateTime.UtcNow.AddDays(-days).ToString("yyyy-MM-ddTHH:mm:ssZ");
         var filter = Uri.EscapeDataString($"activityDateTime ge {since}");

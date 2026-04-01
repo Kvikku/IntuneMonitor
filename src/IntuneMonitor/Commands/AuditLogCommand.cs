@@ -18,10 +18,12 @@ public class AuditLogCommand
     private readonly AppConfiguration _config;
     private readonly ILogger<AuditLogCommand> _logger;
     private readonly ILoggerFactory _loggerFactory;
+    private readonly IHttpClientFactory _httpClientFactory;
 
-    public AuditLogCommand(AppConfiguration config, ILoggerFactory? loggerFactory = null)
+    public AuditLogCommand(AppConfiguration config, IHttpClientFactory httpClientFactory, ILoggerFactory? loggerFactory = null)
     {
         _config = config ?? throw new ArgumentNullException(nameof(config));
+        _httpClientFactory = httpClientFactory ?? throw new ArgumentNullException(nameof(httpClientFactory));
         _loggerFactory = loggerFactory ?? NullLoggerFactory.Instance;
         _logger = _loggerFactory.CreateLogger<AuditLogCommand>();
     }
@@ -57,7 +59,8 @@ public class AuditLogCommand
         }
 
         // Fetch audit events
-        var fetcher = new AuditLogFetcher(credential, _loggerFactory);
+        var graphFactory = new GraphClientFactory(_httpClientFactory);
+        var fetcher = new AuditLogFetcher(credential, graphFactory, _loggerFactory);
         List<AuditEvent> events;
         try
         {

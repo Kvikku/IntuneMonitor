@@ -13,6 +13,7 @@ namespace IntuneMonitor.Graph;
 public class IntuneExporter
 {
     private readonly TokenCredential _credential;
+    private readonly GraphClientFactory _graphClientFactory;
     private readonly ILogger<IntuneExporter> _logger;
 
     /// <summary>Cache of group ID → display name to avoid redundant Graph lookups.</summary>
@@ -42,9 +43,10 @@ public class IntuneExporter
         { "#microsoft.graph.allDevicesAssignmentTarget", "All Devices" }
     };
 
-    public IntuneExporter(TokenCredential credential, ILoggerFactory? loggerFactory = null)
+    public IntuneExporter(TokenCredential credential, GraphClientFactory graphClientFactory, ILoggerFactory? loggerFactory = null)
     {
         _credential = credential ?? throw new ArgumentNullException(nameof(credential));
+        _graphClientFactory = graphClientFactory ?? throw new ArgumentNullException(nameof(graphClientFactory));
         _logger = (loggerFactory ?? NullLoggerFactory.Instance).CreateLogger<IntuneExporter>();
     }
 
@@ -64,7 +66,7 @@ public class IntuneExporter
             throw new ArgumentException($"Unsupported content type: '{contentType}'", nameof(contentType));
 
         var token = await GraphClientFactory.GetAccessTokenAsync(_credential, cancellationToken);
-        using var httpClient = GraphClientFactory.CreateHttpClient(token);
+        using var httpClient = _graphClientFactory.CreateHttpClient(token);
 
         var items = new List<IntuneItem>();
         var url = $"https://graph.microsoft.com/beta/{endpoint}";
