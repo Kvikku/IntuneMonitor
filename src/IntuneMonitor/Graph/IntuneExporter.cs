@@ -1,4 +1,3 @@
-using System.Net.Http.Headers;
 using System.Text.Json;
 using Azure.Core;
 using IntuneMonitor.Models;
@@ -74,9 +73,9 @@ public class IntuneExporter
         {
             cancellationToken.ThrowIfCancellationRequested();
 
-            var response = await httpClient.GetAsync(url, cancellationToken);
-            response.EnsureSuccessStatusCode();
-            var json = await response.Content.ReadAsStringAsync(cancellationToken);
+            var json = await GraphRetryHandler.SendWithRetryAsync(httpClient, url, _logger, cancellationToken);
+            if (json == null)
+                break;
             var root = JsonSerializer.Deserialize<JsonElement>(json);
 
             if (!root.TryGetProperty("value", out var valueArray))
@@ -189,9 +188,8 @@ public class IntuneExporter
         try
         {
             var url = $"https://graph.microsoft.com/beta/{endpoint}/{itemId}";
-            var response = await httpClient.GetAsync(url, cancellationToken);
-            response.EnsureSuccessStatusCode();
-            var json = await response.Content.ReadAsStringAsync(cancellationToken);
+            var json = await GraphRetryHandler.SendWithRetryAsync(httpClient, url, _logger, cancellationToken);
+            if (json == null) return null;
             return JsonSerializer.Deserialize<JsonElement>(json);
         }
         catch (Exception ex)
@@ -220,9 +218,8 @@ public class IntuneExporter
             while (url != null)
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                var response = await httpClient.GetAsync(url, cancellationToken);
-                response.EnsureSuccessStatusCode();
-                var json = await response.Content.ReadAsStringAsync(cancellationToken);
+                var json = await GraphRetryHandler.SendWithRetryAsync(httpClient, url, _logger, cancellationToken);
+                if (json == null) break;
                 var root = JsonSerializer.Deserialize<JsonElement>(json);
 
                 if (root.TryGetProperty("value", out var valueArray))
@@ -280,11 +277,8 @@ public class IntuneExporter
             while (url != null)
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                var response = await httpClient.GetAsync(url, cancellationToken);
-                if (!response.IsSuccessStatusCode)
-                    break;
-
-                var json = await response.Content.ReadAsStringAsync(cancellationToken);
+                var json = await GraphRetryHandler.SendWithRetryAsync(httpClient, url, _logger, cancellationToken);
+                if (json == null) break;
                 var root = JsonSerializer.Deserialize<JsonElement>(json);
 
                 if (root.TryGetProperty("value", out var valueArray))
@@ -364,11 +358,10 @@ public class IntuneExporter
         try
         {
             var url = $"https://graph.microsoft.com/v1.0/groups/{groupId}?$select=displayName";
-            var response = await httpClient.GetAsync(url, cancellationToken);
+            var json = await GraphRetryHandler.SendWithRetryAsync(httpClient, url, _logger, cancellationToken, maxAttempts: 2);
 
-            if (response.IsSuccessStatusCode)
+            if (json != null)
             {
-                var json = await response.Content.ReadAsStringAsync(cancellationToken);
                 var group = JsonSerializer.Deserialize<JsonElement>(json);
                 var name = JsonElementHelpers.GetStringOrNull(group, "displayName") ?? groupId;
                 _groupNameCache[groupId] = name;

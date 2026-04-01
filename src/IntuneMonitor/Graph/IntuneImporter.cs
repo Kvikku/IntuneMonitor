@@ -1,7 +1,8 @@
-using System.Net.Http.Headers;
 using System.Text.Json;
 using Azure.Core;
 using IntuneMonitor.Models;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace IntuneMonitor.Graph;
 
@@ -11,10 +12,12 @@ namespace IntuneMonitor.Graph;
 public class IntuneImporter
 {
     private readonly TokenCredential _credential;
+    private readonly ILogger<IntuneImporter> _logger;
 
-    public IntuneImporter(TokenCredential credential)
+    public IntuneImporter(TokenCredential credential, ILoggerFactory? loggerFactory = null)
     {
         _credential = credential ?? throw new ArgumentNullException(nameof(credential));
+        _logger = (loggerFactory ?? NullLoggerFactory.Instance).CreateLogger<IntuneImporter>();
     }
 
     /// <summary>
@@ -44,7 +47,9 @@ public class IntuneImporter
             System.Text.Encoding.UTF8,
             "application/json");
 
-        var response = await httpClient.PostAsync(url, content, cancellationToken);
+        using var response = await GraphRetryHandler.PostWithRetryAsync(
+            httpClient, url, content, _logger, cancellationToken);
+
         if (!response.IsSuccessStatusCode)
         {
             var error = await response.Content.ReadAsStringAsync(cancellationToken);
