@@ -30,7 +30,7 @@ public static class HtmlAuditReportGenerator
 
         if (report.TotalEvents == 0)
         {
-            sb.AppendLine("<section class=\"no-changes\"><p>No audit events found in the specified period.</p></section>");
+            HtmlReportHelpers.AppendNoDataSection(sb, "No audit events found in the specified period.");
         }
         else
         {
@@ -84,27 +84,11 @@ public static class HtmlAuditReportGenerator
 
     public static async Task WriteAsync(AuditLogReport report, string outputPath, CancellationToken cancellationToken = default)
     {
-        var html = Generate(report);
-        await HtmlReportHelpers.WriteHtmlAsync(html, outputPath, cancellationToken);
+        await HtmlReportHelpers.GenerateAndWriteAsync(() => Generate(report), outputPath, cancellationToken);
     }
 
     private static void AppendBreakdownSection(StringBuilder sb, string title, Dictionary<string, int> data)
     {
-        sb.AppendLine("<section class=\"content-type\">");
-        sb.AppendLine($"<h2>{HtmlReportHelpers.Encode(title)} <span class=\"badge\">{data.Count}</span></h2>");
-        sb.AppendLine("<table>");
-        sb.AppendLine("<thead><tr><th>Name</th><th>Count</th></tr></thead>");
-        sb.AppendLine("<tbody>");
-
-        foreach (var (name, count) in data.OrderByDescending(kv => kv.Value))
-        {
-            sb.AppendLine("<tr>");
-            sb.AppendLine($"<td class=\"policy-name\">{HtmlReportHelpers.Encode(name)}</td>");
-            sb.AppendLine($"<td>{count}</td>");
-            sb.AppendLine("</tr>");
-        }
-
-        sb.AppendLine("</tbody></table>");
-        sb.AppendLine("</section>");
+        HtmlReportHelpers.AppendBreakdownTable(sb, title, data);
     }
 }

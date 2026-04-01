@@ -28,7 +28,7 @@ public static class HtmlExportReportGenerator
 
         if (report.ContentSummaries.Count == 0)
         {
-            sb.AppendLine("<section class=\"no-changes\"><p>No items exported.</p></section>");
+            HtmlReportHelpers.AppendNoDataSection(sb, "No items exported.");
         }
         else
         {
@@ -85,8 +85,7 @@ public static class HtmlExportReportGenerator
 
     public static async Task WriteAsync(ExportReport report, string outputPath, CancellationToken cancellationToken = default)
     {
-        var html = Generate(report);
-        await HtmlReportHelpers.WriteHtmlAsync(html, outputPath, cancellationToken);
+        await HtmlReportHelpers.GenerateAndWriteAsync(() => Generate(report), outputPath, cancellationToken);
     }
 
     private static string GetExportStyles() => """

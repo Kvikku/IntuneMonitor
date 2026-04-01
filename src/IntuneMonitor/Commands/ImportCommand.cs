@@ -73,7 +73,7 @@ public class ImportCommand
             return 0;
         }
 
-        var importer = new IntuneImporter(credential);
+        var importer = new IntuneImporter(credential, _loggerFactory);
         int successCount = 0;
         int errorCount = 0;
 
