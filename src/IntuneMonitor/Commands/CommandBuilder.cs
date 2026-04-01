@@ -33,7 +33,7 @@ internal static class CommandBuilder
         RegisterListTypesCommand(rootCommand);
         RegisterDiffCommand(rootCommand, options, appConfig);
         RegisterRollbackCommand(rootCommand, options, appConfig, httpClientFactory);
-        RegisterDependencyCommand(rootCommand, options, appConfig, httpClientFactory);
+        RegisterDependencyCommand(rootCommand, options, appConfig);
         RegisterValidateCommand(rootCommand, options, appConfig);
 
         return (rootCommand, options);
@@ -261,7 +261,7 @@ internal static class CommandBuilder
 
     private static void RegisterDependencyCommand(
         RootCommand rootCommand, GlobalOptions options,
-        AppConfiguration appConfig, IHttpClientFactory httpClientFactory)
+        AppConfiguration appConfig)
     {
         var command = new Command("dependency",
             "Analyze policy relationships and dependencies from backup data.");

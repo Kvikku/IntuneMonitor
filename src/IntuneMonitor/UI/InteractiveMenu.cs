@@ -18,9 +18,9 @@ public class InteractiveMenu
 
     public InteractiveMenu(AppConfiguration config, Func<LogLevel, ILoggerFactory> loggerFactoryCreator, IHttpClientFactory httpClientFactory)
     {
-        _config = config;
-        _loggerFactoryCreator = loggerFactoryCreator;
-        _httpClientFactory = httpClientFactory;
+        _config = config ?? throw new ArgumentNullException(nameof(config));
+        _loggerFactoryCreator = loggerFactoryCreator ?? throw new ArgumentNullException(nameof(loggerFactoryCreator));
+        _httpClientFactory = httpClientFactory ?? throw new ArgumentNullException(nameof(httpClientFactory));
     }
 
     public async Task<int> RunAsync()

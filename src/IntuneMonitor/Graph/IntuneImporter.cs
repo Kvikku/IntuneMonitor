@@ -44,7 +44,7 @@ public class IntuneImporter
 
         using var httpClient = _graphClientFactory.CreateHttpClient(token);
 
-        var content = new StringContent(
+        using var content = new StringContent(
             JsonSerializer.Serialize(payload),
             System.Text.Encoding.UTF8,
             "application/json");
@@ -59,13 +59,16 @@ public class IntuneImporter
             return ImportResult.FailedWithException(item.Name, ex);
         }
 
-        if (response.IsSuccessStatusCode)
+        using (response)
         {
-            return ImportResult.Succeeded(item.Name);
-        }
+            if (response.IsSuccessStatusCode)
+            {
+                return ImportResult.Succeeded(item.Name);
+            }
 
-        var errorBody = await response.Content.ReadAsStringAsync(cancellationToken);
-        return ImportResult.Failed(item.Name, response.StatusCode, errorBody);
+            var errorBody = await response.Content.ReadAsStringAsync(cancellationToken);
+            return ImportResult.Failed(item.Name, response.StatusCode, errorBody);
+        }
     }
 
     // -------------------------------------------------------------------------
