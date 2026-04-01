@@ -15,16 +15,15 @@ public class IntuneImporter
 {
     private readonly TokenCredential _credential;
     private readonly GraphClientFactory _graphClientFactory;
+    private readonly ILogger<IntuneImporter> _logger;
 
-    public IntuneImporter(TokenCredential credential, GraphClientFactory graphClientFactory)
+    public IntuneImporter(
+        TokenCredential credential,
+        GraphClientFactory graphClientFactory,
+        ILoggerFactory? loggerFactory = null)
     {
         _credential = credential ?? throw new ArgumentNullException(nameof(credential));
         _graphClientFactory = graphClientFactory ?? throw new ArgumentNullException(nameof(graphClientFactory));
-    private readonly ILogger<IntuneImporter> _logger;
-
-    public IntuneImporter(TokenCredential credential, ILoggerFactory? loggerFactory = null)
-    {
-        _credential = credential ?? throw new ArgumentNullException(nameof(credential));
         _logger = (loggerFactory ?? NullLoggerFactory.Instance).CreateLogger<IntuneImporter>();
     }
 
@@ -57,22 +56,11 @@ public class IntuneImporter
             System.Text.Encoding.UTF8,
             "application/json");
 
-        HttpResponseMessage response;
         try
-        using var response = await GraphRetryHandler.PostWithRetryAsync(
-            httpClient, url, content, _logger, cancellationToken);
+        {
+            using var response = await GraphRetryHandler.PostWithRetryAsync(
+                httpClient, url, content, _logger, cancellationToken);
 
-        if (!response.IsSuccessStatusCode)
-        {
-            response = await httpClient.PostAsync(url, content, cancellationToken);
-        }
-        catch (HttpRequestException ex)
-        {
-            return ImportResult.FailedWithException(item.Name, ex);
-        }
-
-        using (response)
-        {
             if (response.IsSuccessStatusCode)
             {
                 return ImportResult.Succeeded(item.Name);
@@ -80,6 +68,10 @@ public class IntuneImporter
 
             var errorBody = await response.Content.ReadAsStringAsync(cancellationToken);
             return ImportResult.Failed(item.Name, response.StatusCode, errorBody);
+        }
+        catch (HttpRequestException ex)
+        {
+            return ImportResult.FailedWithException(item.Name, ex);
         }
     }
 
