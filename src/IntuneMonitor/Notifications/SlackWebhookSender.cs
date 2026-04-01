@@ -1,5 +1,4 @@
 using System.Text;
-using System.Text.Json;
 
 namespace IntuneMonitor.Notifications;
 
@@ -11,17 +10,9 @@ using Microsoft.Extensions.Logging;
 /// Sends drift detection notifications to Slack via an incoming webhook.
 /// Posts a Block Kit message with a summary of detected changes.
 /// </summary>
-public class SlackWebhookSender : INotificationSender
+public class SlackWebhookSender : WebhookNotificationSender
 {
     private readonly SlackWebhookConfig _config;
-    private readonly ILogger<SlackWebhookSender> _logger;
-    private readonly HttpClient _httpClient;
-
-    private static readonly JsonSerializerOptions JsonOptions = new()
-    {
-        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-        WriteIndented = false
-    };
 
     /// <summary>
     /// Initializes a new instance of the <see cref="SlackWebhookSender"/> class.
@@ -30,35 +21,19 @@ public class SlackWebhookSender : INotificationSender
     /// <param name="logger">Logger instance.</param>
     /// <param name="httpClient">Optional HttpClient for testing.</param>
     public SlackWebhookSender(SlackWebhookConfig config, ILogger<SlackWebhookSender> logger, HttpClient? httpClient = null)
+        : base(logger, httpClient)
     {
         _config = config ?? throw new ArgumentNullException(nameof(config));
-        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
-        _httpClient = httpClient ?? new HttpClient();
     }
 
     /// <inheritdoc />
-    public string ChannelName => "Slack";
+    public override string ChannelName => "Slack";
 
     /// <inheritdoc />
-    public async Task SendAsync(ChangeReport report, CancellationToken cancellationToken = default)
-    {
-        _logger.LogDebug("Building Slack Block Kit message for {ChangeCount} change(s)", report.TotalCount);
+    protected override string WebhookUrl => _config.WebhookUrl;
 
-        var payload = BuildBlockKitPayload(report);
-        var json = JsonSerializer.Serialize(payload, JsonOptions);
-
-        using var content = new StringContent(json, Encoding.UTF8, "application/json");
-        using var response = await _httpClient.PostAsync(_config.WebhookUrl, content, cancellationToken);
-
-        if (!response.IsSuccessStatusCode)
-        {
-            var body = await response.Content.ReadAsStringAsync(cancellationToken);
-            _logger.LogError("Slack webhook returned {StatusCode}: {Body}", (int)response.StatusCode, body);
-            response.EnsureSuccessStatusCode();
-        }
-
-        _logger.LogDebug("Slack webhook accepted the notification");
-    }
+    /// <inheritdoc />
+    protected override object BuildPayload(ChangeReport report) => BuildBlockKitPayload(report);
 
     // ----------------------------------------------------------------
     // Private helpers
