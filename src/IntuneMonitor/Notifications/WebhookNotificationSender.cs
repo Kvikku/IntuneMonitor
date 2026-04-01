@@ -11,9 +11,10 @@ using Microsoft.Extensions.Logging;
 /// Handles the common HTTP POST, error handling, and logging. Subclasses provide
 /// the channel name, webhook URL, and payload construction.
 /// </summary>
-public abstract class WebhookNotificationSender : INotificationSender
+public abstract class WebhookNotificationSender : INotificationSender, IDisposable
 {
     private readonly HttpClient _httpClient;
+    private readonly bool _ownsHttpClient;
 
     /// <summary>Logger for diagnostics.</summary>
     protected readonly ILogger Logger;
@@ -29,10 +30,12 @@ public abstract class WebhookNotificationSender : INotificationSender
     /// Initializes a new instance of the <see cref="WebhookNotificationSender"/> class.
     /// </summary>
     /// <param name="logger">Logger instance.</param>
-    /// <param name="httpClient">Optional HttpClient for testing.</param>
+    /// <param name="httpClient">Optional HttpClient for testing. If not provided, an internal client
+    /// is created and will be disposed with this instance.</param>
     protected WebhookNotificationSender(ILogger logger, HttpClient? httpClient = null)
     {
         Logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        _ownsHttpClient = httpClient == null;
         _httpClient = httpClient ?? new HttpClient();
     }
 
@@ -69,5 +72,14 @@ public abstract class WebhookNotificationSender : INotificationSender
         }
 
         Logger.LogDebug("{Channel} webhook accepted the notification", ChannelName);
+    }
+
+    /// <summary>Disposes the internally-created <see cref="HttpClient"/> if this instance owns it.</summary>
+    public void Dispose()
+    {
+        if (_ownsHttpClient)
+            _httpClient.Dispose();
+
+        GC.SuppressFinalize(this);
     }
 }

@@ -219,7 +219,11 @@ public class IntuneExporter
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 var json = await GraphRetryHandler.SendWithRetryAsync(httpClient, url, _logger, cancellationToken);
-                if (json == null) break;
+                if (json == null)
+                {
+                    _logger.LogWarning("Received null response when fetching settings for {Endpoint}/{ItemId}. Returning policy detail unchanged.", endpoint, itemId);
+                    return policyDetail;
+                }
                 var root = JsonSerializer.Deserialize<JsonElement>(json);
 
                 if (root.TryGetProperty("value", out var valueArray))

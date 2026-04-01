@@ -42,7 +42,7 @@ public class IntuneImporter
 
         using var httpClient = GraphClientFactory.CreateHttpClient(token);
 
-        var content = new StringContent(
+        using var content = new StringContent(
             JsonSerializer.Serialize(payload),
             System.Text.Encoding.UTF8,
             "application/json");

@@ -17,7 +17,7 @@ internal static class ChangeBuilder
             PolicyName = name ?? id,
             ChangeType = ChangeType.Added,
             Severity = ChangeSeverity.Info,
-            Details = $"Policy '{name}' was created.",
+            Details = $"Policy '{name ?? id}' was created.",
             DetectedAt = DateTime.UtcNow
         };
 
@@ -30,7 +30,7 @@ internal static class ChangeBuilder
             PolicyName = name ?? id,
             ChangeType = ChangeType.Removed,
             Severity = ChangeSeverity.Critical,
-            Details = $"Policy '{name}' was deleted.",
+            Details = $"Policy '{name ?? id}' was deleted.",
             DetectedAt = DateTime.UtcNow
         };
 
@@ -44,7 +44,7 @@ internal static class ChangeBuilder
             ChangeType = ChangeType.Modified,
             Severity = ChangeSeverity.Warning,
             FieldChanges = fieldChanges.ToList(),
-            Details = $"Policy '{name}' was modified ({fieldChanges.Count} field(s) changed).",
+            Details = $"Policy '{name ?? id}' was modified ({fieldChanges.Count} field(s) changed).",
             DetectedAt = DateTime.UtcNow
         };
 }

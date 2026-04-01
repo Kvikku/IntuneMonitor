@@ -58,7 +58,7 @@ internal static class GraphRetryHandler
                 if (response.IsSuccessStatusCode)
                     return await response.Content.ReadAsStringAsync(cancellationToken);
 
-                if (response.StatusCode == HttpStatusCode.TooManyRequests)
+                if (response.StatusCode == HttpStatusCode.TooManyRequests && attempt < maxAttempts - 1)
                 {
                     var retryAfter = GetRetryAfterSeconds(response);
                     logger.LogWarning("Throttled (HTTP 429). Waiting {RetryAfterSeconds}s before retry (attempt {Attempt}/{MaxAttempts})",
@@ -90,8 +90,8 @@ internal static class GraphRetryHandler
 
     /// <summary>
     /// Sends a POST request with retry logic for HTTP 429 and transient 5xx errors.
-    /// Returns the response, which the caller must dispose.
-    /// Throws <see cref="HttpRequestException"/> if all retries are exhausted on transient errors.
+    /// Returns the final <see cref="HttpResponseMessage"/> (success or non-retryable failure),
+    /// which the caller is responsible for disposing.
     /// </summary>
     public static async Task<HttpResponseMessage> PostWithRetryAsync(
         HttpClient httpClient,
