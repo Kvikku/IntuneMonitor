@@ -1,4 +1,5 @@
 using Azure.Core;
+using IntuneMonitor.Graph;
 
 namespace IntuneMonitor.Tests;
 
@@ -24,6 +25,14 @@ internal static class GraphTestHelpers
     /// <summary>A fake TokenCredential that never contacts Azure AD.</summary>
     public static TokenCredential FakeCredential { get; } = new FakeTokenCredential();
 
+    /// <summary>
+    /// A <see cref="GraphClientFactory"/> backed by a stub <see cref="IHttpClientFactory"/>.
+    /// Tests that set the <c>HttpClientFactory</c> hook on Graph classes never actually call
+    /// this factory; it exists only to satisfy the non-null constructor requirement.
+    /// </summary>
+    public static GraphClientFactory FakeGraphClientFactory { get; } =
+        new GraphClientFactory(new StubHttpClientFactory());
+
     private sealed class FakeTokenCredential : TokenCredential
     {
         public override ValueTask<AccessToken> GetTokenAsync(
@@ -33,5 +42,10 @@ internal static class GraphTestHelpers
         public override AccessToken GetToken(
             TokenRequestContext requestContext, CancellationToken cancellationToken) =>
             new("fake-token", DateTimeOffset.MaxValue);
+    }
+
+    private sealed class StubHttpClientFactory : IHttpClientFactory
+    {
+        public HttpClient CreateClient(string name) => new HttpClient();
     }
 }

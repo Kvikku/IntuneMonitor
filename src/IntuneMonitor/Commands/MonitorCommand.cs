@@ -23,10 +23,12 @@ public class MonitorCommand
     private readonly AppConfiguration _config;
     private readonly ILogger<MonitorCommand> _logger;
     private readonly ILoggerFactory _loggerFactory;
+    private readonly IHttpClientFactory _httpClientFactory;
 
-    public MonitorCommand(AppConfiguration config, ILoggerFactory? loggerFactory = null)
+    public MonitorCommand(AppConfiguration config, IHttpClientFactory httpClientFactory, ILoggerFactory? loggerFactory = null)
     {
         _config = config ?? throw new ArgumentNullException(nameof(config));
+        _httpClientFactory = httpClientFactory ?? throw new ArgumentNullException(nameof(httpClientFactory));
         _loggerFactory = loggerFactory ?? NullLoggerFactory.Instance;
         _logger = _loggerFactory.CreateLogger<MonitorCommand>();
     }
@@ -71,7 +73,8 @@ public class MonitorCommand
         }
 
         // Fetch current state from Graph
-        var exporter = new IntuneExporter(credential, _loggerFactory);
+        var graphFactory = new GraphClientFactory(_httpClientFactory);
+        var exporter = new IntuneExporter(credential, graphFactory, _loggerFactory);
         var progress = new Progress<string>(msg => _logger.LogDebug("{ProgressMessage}", msg));
 
         Dictionary<string, List<IntuneItem>> liveData;

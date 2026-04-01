@@ -12,6 +12,7 @@ namespace IntuneMonitor.Graph;
 public class IntuneExporter
 {
     private readonly TokenCredential _credential;
+    private readonly GraphClientFactory _graphClientFactory;
     private readonly ILogger<IntuneExporter> _logger;
 
     /// <summary>Cache of group ID → display name to avoid redundant Graph lookups.</summary>
@@ -44,9 +45,10 @@ public class IntuneExporter
     /// <summary>Internal hook for tests to provide a custom HttpClient factory.</summary>
     internal Func<CancellationToken, Task<HttpClient>>? HttpClientFactory { get; set; }
 
-    public IntuneExporter(TokenCredential credential, ILoggerFactory? loggerFactory = null)
+    public IntuneExporter(TokenCredential credential, GraphClientFactory graphClientFactory, ILoggerFactory? loggerFactory = null)
     {
         _credential = credential ?? throw new ArgumentNullException(nameof(credential));
+        _graphClientFactory = graphClientFactory ?? throw new ArgumentNullException(nameof(graphClientFactory));
         _logger = (loggerFactory ?? NullLoggerFactory.Instance).CreateLogger<IntuneExporter>();
     }
 
@@ -56,7 +58,7 @@ public class IntuneExporter
             return await HttpClientFactory(cancellationToken);
 
         var token = await GraphClientFactory.GetAccessTokenAsync(_credential, cancellationToken);
-        return GraphClientFactory.CreateHttpClient(token);
+        return _graphClientFactory.CreateHttpClient(token);
     }
 
     /// <summary>

@@ -16,7 +16,7 @@ public class AuditLogFetcherTests
 
     public AuditLogFetcherTests()
     {
-        _fetcher = new AuditLogFetcher(GraphTestHelpers.FakeCredential);
+        _fetcher = new AuditLogFetcher(GraphTestHelpers.FakeCredential, GraphTestHelpers.FakeGraphClientFactory);
         _fetcher.HttpClientFactory = GraphTestHelpers.CreateClientFactory(_handler);
         _fetcher.DelayFunc = (_, _) => Task.CompletedTask; // bypass real delays in tests
     }
@@ -365,6 +365,6 @@ public class AuditLogFetcherTests
     [Fact]
     public void AuditLogFetcher_NullCredential_ThrowsArgumentNullException()
     {
-        Assert.Throws<ArgumentNullException>(() => new AuditLogFetcher(null!));
+        Assert.Throws<ArgumentNullException>(() => new AuditLogFetcher(null!, GraphTestHelpers.FakeGraphClientFactory));
     }
 }

@@ -16,7 +16,7 @@ public class IntuneImporterTests
 
     public IntuneImporterTests()
     {
-        _importer = new IntuneImporter(GraphTestHelpers.FakeCredential);
+        _importer = new IntuneImporter(GraphTestHelpers.FakeCredential, GraphTestHelpers.FakeGraphClientFactory);
         _importer.HttpClientFactory = GraphTestHelpers.CreateClientFactory(_handler);
     }
 
@@ -43,7 +43,8 @@ public class IntuneImporterTests
 
         var result = await _importer.ImportItemAsync(item);
 
-        Assert.Equal("MyPolicy", result);
+        Assert.True(result.Success);
+        Assert.Equal("MyPolicy", result.PolicyName);
         Assert.Single(_handler.Requests);
 
         // Verify the request was a POST to the correct endpoint
@@ -191,50 +192,56 @@ public class IntuneImporterTests
     }
 
     [Fact]
-    public async Task ImportItemAsync_HttpError_ThrowsInvalidOperationException()
+    public async Task ImportItemAsync_HttpError_ReturnsFailedResult()
     {
         _handler.EnqueueError(HttpStatusCode.BadRequest, "Invalid payload");
 
         var item = MakeItem("TestPolicy", IntuneContentTypes.DeviceCompliancePolicy,
             """{"displayName":"TestPolicy"}""");
 
-        var ex = await Assert.ThrowsAsync<InvalidOperationException>(
-            () => _importer.ImportItemAsync(item));
-        Assert.Contains("TestPolicy", ex.Message);
-        Assert.Contains("BadRequest", ex.Message);
+        var result = await _importer.ImportItemAsync(item);
+
+        Assert.False(result.Success);
+        Assert.Equal("TestPolicy", result.PolicyName);
+        Assert.Equal(HttpStatusCode.BadRequest, result.StatusCode);
+        Assert.Equal(ImportErrorCategory.ValidationError, result.ErrorCategory);
     }
 
     [Fact]
-    public async Task ImportItemAsync_Forbidden_ThrowsInvalidOperationException()
+    public async Task ImportItemAsync_Forbidden_ReturnsFailedResult()
     {
         _handler.EnqueueError(HttpStatusCode.Forbidden, "Insufficient privileges");
 
         var item = MakeItem("TestPolicy", IntuneContentTypes.DeviceCompliancePolicy,
             """{"displayName":"TestPolicy"}""");
 
-        var ex = await Assert.ThrowsAsync<InvalidOperationException>(
-            () => _importer.ImportItemAsync(item));
-        Assert.Contains("Forbidden", ex.Message);
+        var result = await _importer.ImportItemAsync(item);
+
+        Assert.False(result.Success);
+        Assert.Equal(HttpStatusCode.Forbidden, result.StatusCode);
+        Assert.Equal(ImportErrorCategory.AuthenticationError, result.ErrorCategory);
     }
 
     [Fact]
-    public async Task ImportItemAsync_Conflict_ThrowsInvalidOperationException()
+    public async Task ImportItemAsync_Conflict_ReturnsFailedResult()
     {
         _handler.EnqueueError(HttpStatusCode.Conflict, "Policy already exists");
 
         var item = MakeItem("TestPolicy", IntuneContentTypes.DeviceCompliancePolicy,
             """{"displayName":"TestPolicy"}""");
 
-        var ex = await Assert.ThrowsAsync<InvalidOperationException>(
-            () => _importer.ImportItemAsync(item));
-        Assert.Contains("Conflict", ex.Message);
+        var result = await _importer.ImportItemAsync(item);
+
+        Assert.False(result.Success);
+        Assert.Equal(HttpStatusCode.Conflict, result.StatusCode);
+        Assert.Equal(ImportErrorCategory.Conflict, result.ErrorCategory);
     }
 
     [Fact]
-    public async Task ImportItemAsync_ServerError_ThrowsInvalidOperationException()
+    public async Task ImportItemAsync_ServerError_ReturnsFailedResult()
     {
         // PostWithRetryAsync retries 5xx up to DefaultMaxAttempts (5) times.
-        // Queue enough responses so the final attempt returns the 500 and ImportItemAsync throws.
+        // Queue enough responses so the final attempt returns the 500.
         const int maxAttempts = 5;
         for (int i = 0; i < maxAttempts; i++)
             _handler.EnqueueError(HttpStatusCode.InternalServerError, "Server error");
@@ -242,9 +249,11 @@ public class IntuneImporterTests
         var item = MakeItem("TestPolicy", IntuneContentTypes.DeviceCompliancePolicy,
             """{"displayName":"TestPolicy"}""");
 
-        var ex = await Assert.ThrowsAsync<InvalidOperationException>(
-            () => _importer.ImportItemAsync(item));
-        Assert.Contains("InternalServerError", ex.Message);
+        var result = await _importer.ImportItemAsync(item);
+
+        Assert.False(result.Success);
+        Assert.Equal(HttpStatusCode.InternalServerError, result.StatusCode);
+        Assert.Equal(ImportErrorCategory.ServerError, result.ErrorCategory);
     }
 
     // -----------------------------------------------------------------------
@@ -254,7 +263,7 @@ public class IntuneImporterTests
     [Fact]
     public void IntuneImporter_NullCredential_ThrowsArgumentNullException()
     {
-        Assert.Throws<ArgumentNullException>(() => new IntuneImporter(null!));
+        Assert.Throws<ArgumentNullException>(() => new IntuneImporter(null!, GraphTestHelpers.FakeGraphClientFactory));
     }
 
     // -----------------------------------------------------------------------

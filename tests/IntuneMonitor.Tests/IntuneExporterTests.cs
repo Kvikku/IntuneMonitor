@@ -16,7 +16,7 @@ public class IntuneExporterTests
 
     public IntuneExporterTests()
     {
-        _exporter = new IntuneExporter(GraphTestHelpers.FakeCredential);
+        _exporter = new IntuneExporter(GraphTestHelpers.FakeCredential, GraphTestHelpers.FakeGraphClientFactory);
         _exporter.HttpClientFactory = GraphTestHelpers.CreateClientFactory(_handler);
     }
 
@@ -72,7 +72,7 @@ public class IntuneExporterTests
             Content = new StringContent(page2, System.Text.Encoding.UTF8, "application/json")
         });
 
-        var exporter = new IntuneExporter(GraphTestHelpers.FakeCredential);
+        var exporter = new IntuneExporter(GraphTestHelpers.FakeCredential, GraphTestHelpers.FakeGraphClientFactory);
         exporter.HttpClientFactory = GraphTestHelpers.CreateClientFactory(handler);
 
         var result = await exporter.ExportContentTypeAsync(IntuneContentTypes.AssignmentFilter);
@@ -145,7 +145,7 @@ public class IntuneExporterTests
         _handler.Enqueue(HttpStatusCode.OK, new { value = Array.Empty<object>() });
 
         var types = new[] { IntuneContentTypes.AssignmentFilter, IntuneContentTypes.ConditionalAccessPolicy };
-        var exporter = new IntuneExporter(GraphTestHelpers.FakeCredential);
+        var exporter = new IntuneExporter(GraphTestHelpers.FakeCredential, GraphTestHelpers.FakeGraphClientFactory);
         exporter.HttpClientFactory = GraphTestHelpers.CreateClientFactory(_handler);
 
         var result = await exporter.ExportAllAsync(types);
@@ -576,7 +576,7 @@ public class IntuneExporterTests
             value = new[] { new { id = "item1", displayName = "Item1" } }
         });
 
-        var exporter = new IntuneExporter(GraphTestHelpers.FakeCredential);
+        var exporter = new IntuneExporter(GraphTestHelpers.FakeCredential, GraphTestHelpers.FakeGraphClientFactory);
         exporter.HttpClientFactory = GraphTestHelpers.CreateClientFactory(handler);
 
         var result = await exporter.ExportContentTypeAsync(contentType);

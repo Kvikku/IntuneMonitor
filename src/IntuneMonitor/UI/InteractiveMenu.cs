@@ -14,11 +14,13 @@ public class InteractiveMenu
 {
     private readonly AppConfiguration _config;
     private readonly Func<LogLevel, ILoggerFactory> _loggerFactoryCreator;
+    private readonly IHttpClientFactory _httpClientFactory;
 
-    public InteractiveMenu(AppConfiguration config, Func<LogLevel, ILoggerFactory> loggerFactoryCreator)
+    public InteractiveMenu(AppConfiguration config, Func<LogLevel, ILoggerFactory> loggerFactoryCreator, IHttpClientFactory httpClientFactory)
     {
-        _config = config;
-        _loggerFactoryCreator = loggerFactoryCreator;
+        _config = config ?? throw new ArgumentNullException(nameof(config));
+        _loggerFactoryCreator = loggerFactoryCreator ?? throw new ArgumentNullException(nameof(loggerFactoryCreator));
+        _httpClientFactory = httpClientFactory ?? throw new ArgumentNullException(nameof(httpClientFactory));
     }
 
     public async Task<int> RunAsync()
@@ -28,55 +30,44 @@ public class InteractiveMenu
             AnsiConsole.WriteLine();
             var choice = AnsiConsole.Prompt(
                 new SelectionPrompt<string>()
-                    .Title("[bold dodgerblue1]What would you like to do?[/]")
+                    .Title(MenuConstants.MainMenuTitle)
                     .HighlightStyle(Style.Parse("dodgerblue1"))
-                    .AddChoices(
-                        "Export policies",
-                        "Import policies",
-                        "Monitor for changes",
-                        "Rollback drift",
-                        "Compare backups (diff)",
-                        "Analyze dependencies",
-                        "Validate backups",
-                        "Review audit logs",
-                        "List content types",
-                        "Settings overview",
-                        "Exit"));
+                    .AddChoices(MenuConstants.MainMenuChoices));
 
             switch (choice)
             {
-                case "Export policies":
+                case MenuConstants.ExportPolicies:
                     await RunExportAsync();
                     break;
-                case "Import policies":
+                case MenuConstants.ImportPolicies:
                     await RunImportAsync();
                     break;
-                case "Monitor for changes":
+                case MenuConstants.MonitorForChanges:
                     await RunMonitorAsync();
                     break;
-                case "Rollback drift":
+                case MenuConstants.RollbackDrift:
                     await RunRollbackAsync();
                     break;
-                case "Compare backups (diff)":
+                case MenuConstants.CompareBackups:
                     await RunDiffAsync();
                     break;
-                case "Analyze dependencies":
+                case MenuConstants.AnalyzeDependencies:
                     await RunDependencyAsync();
                     break;
-                case "Validate backups":
+                case MenuConstants.ValidateBackups:
                     await RunValidateAsync();
                     break;
-                case "Review audit logs":
+                case MenuConstants.ReviewAuditLogs:
                     await RunAuditLogAsync();
                     break;
-                case "List content types":
+                case MenuConstants.ListContentTypes:
                     ConsoleUI.WriteContentTypesTable();
                     break;
-                case "Settings overview":
+                case MenuConstants.SettingsOverview:
                     ShowSettings();
                     break;
-                case "Exit":
-                    AnsiConsole.MarkupLine("[dim]Goodbye![/]");
+                case MenuConstants.Exit:
+                    AnsiConsole.MarkupLine(MenuConstants.GoodbyeMessage);
                     return 0;
             }
         }
@@ -98,17 +89,17 @@ public class InteractiveMenu
         }
 
         using var loggerFactory = _loggerFactoryCreator(LogLevel.Information);
-        var cmd = new ExportCommand(_config, loggerFactory);
+        var cmd = new ExportCommand(_config, _httpClientFactory, loggerFactory);
         await cmd.RunAsync(types);
     }
 
     private async Task RunImportAsync()
     {
         var types = PromptContentTypes();
-        var dryRun = AnsiConsole.Confirm("Dry run (preview only, no changes)?", true);
+        var dryRun = AnsiConsole.Confirm(MenuConstants.DryRunPrompt, true);
 
         using var loggerFactory = _loggerFactoryCreator(LogLevel.Information);
-        var cmd = new ImportCommand(_config, loggerFactory);
+        var cmd = new ImportCommand(_config, _httpClientFactory, loggerFactory);
         await cmd.RunAsync(types, dryRun);
     }
 
@@ -145,10 +136,10 @@ public class InteractiveMenu
         Console.CancelKeyPress += (_, e) => { e.Cancel = true; cts.Cancel(); };
 
         if (scheduled)
-            AnsiConsole.MarkupLine("[dim]Press Ctrl+C to stop scheduled monitoring[/]");
+            AnsiConsole.MarkupLine(MenuConstants.ScheduledMonitoringHint);
 
         using var loggerFactory = _loggerFactoryCreator(LogLevel.Information);
-        var cmd = new MonitorCommand(_config, loggerFactory);
+        var cmd = new MonitorCommand(_config, _httpClientFactory, loggerFactory);
         await cmd.RunScheduledAsync(types, cts.Token);
     }
 
@@ -186,17 +177,17 @@ public class InteractiveMenu
         }
 
         using var loggerFactory = _loggerFactoryCreator(LogLevel.Information);
-        var cmd = new AuditLogCommand(_config, loggerFactory);
+        var cmd = new AuditLogCommand(_config, _httpClientFactory, loggerFactory);
         await cmd.RunAsync(days, htmlPath, jsonPath);
     }
 
     private async Task RunRollbackAsync()
     {
         var types = PromptContentTypes();
-        var dryRun = AnsiConsole.Confirm("Dry run (preview only, no changes)?", true);
+        var dryRun = AnsiConsole.Confirm(MenuConstants.DryRunPrompt, true);
 
         using var loggerFactory = _loggerFactoryCreator(LogLevel.Information);
-        var cmd = new RollbackCommand(_config, loggerFactory);
+        var cmd = new RollbackCommand(_config, _httpClientFactory, loggerFactory);
         await cmd.RunAsync(types, dryRun);
     }
 
@@ -279,13 +270,13 @@ public class InteractiveMenu
 
     private List<string>? PromptContentTypes()
     {
-        var filterChoice = AnsiConsole.Confirm("Limit to specific content types? (No = all types)", false);
+        var filterChoice = AnsiConsole.Confirm(MenuConstants.ContentTypeFilterPrompt, false);
         if (!filterChoice)
             return null;
 
         var selected = AnsiConsole.Prompt(
             new MultiSelectionPrompt<string>()
-                .Title("Select content types to include:")
+                .Title(MenuConstants.ContentTypeSelectionTitle)
                 .HighlightStyle(Style.Parse("dodgerblue1"))
                 .InstructionsText("[dim](Press [dodgerblue1]<space>[/] to toggle, [dodgerblue1]<enter>[/] to confirm)[/]")
                 .AddChoices(IntuneContentTypes.All));

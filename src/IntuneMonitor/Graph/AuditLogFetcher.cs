@@ -14,6 +14,7 @@ namespace IntuneMonitor.Graph;
 public class AuditLogFetcher
 {
     private readonly TokenCredential _credential;
+    private readonly GraphClientFactory _graphClientFactory;
     private readonly ILogger<AuditLogFetcher> _logger;
 
     /// <summary>Maximum number of events per page to request from Graph.</summary>
@@ -31,9 +32,10 @@ public class AuditLogFetcher
     /// <summary>Base delay in seconds for exponential backoff on server errors.</summary>
     private const int BaseBackoffSeconds = 5;
 
-    public AuditLogFetcher(TokenCredential credential, ILoggerFactory? loggerFactory = null)
+    public AuditLogFetcher(TokenCredential credential, GraphClientFactory graphClientFactory, ILoggerFactory? loggerFactory = null)
     {
         _credential = credential ?? throw new ArgumentNullException(nameof(credential));
+        _graphClientFactory = graphClientFactory ?? throw new ArgumentNullException(nameof(graphClientFactory));
         _logger = (loggerFactory ?? NullLoggerFactory.Instance).CreateLogger<AuditLogFetcher>();
     }
 
@@ -54,7 +56,7 @@ public class AuditLogFetcher
             return await HttpClientFactory(cancellationToken);
 
         var token = await GraphClientFactory.GetAccessTokenAsync(_credential, cancellationToken);
-        return GraphClientFactory.CreateHttpClient(token);
+        return _graphClientFactory.CreateHttpClient(token);
     }
 
     /// <summary>
@@ -90,7 +92,7 @@ public class AuditLogFetcher
 
             _logger.LogDebug("Fetching audit log page {PageNumber}...", pageCount);
 
-            var json = await GraphRetryHandler.SendWithRetryAsync(httpClient, url, _logger, cancellationToken);
+            var json = await SendWithRetryAsync(httpClient, url, cancellationToken);
             if (json == null)
                 break;
 
@@ -151,7 +153,7 @@ public class AuditLogFetcher
                 if (response.IsSuccessStatusCode)
                     return await response.Content.ReadAsStringAsync(cancellationToken);
 
-                if (response.StatusCode == HttpStatusCode.TooManyRequests)
+                if (response.StatusCode == HttpStatusCode.TooManyRequests && attempt < MaxAttempts - 1)
                 {
                     var retryAfter = GetRetryAfterSeconds(response);
                     _logger.LogWarning("Throttled (HTTP 429). Waiting {RetryAfterSeconds}s before retry (attempt {Attempt}/{MaxAttempts})",

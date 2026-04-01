@@ -20,10 +20,12 @@ public class RollbackCommand
     private readonly AppConfiguration _config;
     private readonly ILogger<RollbackCommand> _logger;
     private readonly ILoggerFactory _loggerFactory;
+    private readonly IHttpClientFactory _httpClientFactory;
 
-    public RollbackCommand(AppConfiguration config, ILoggerFactory? loggerFactory = null)
+    public RollbackCommand(AppConfiguration config, IHttpClientFactory httpClientFactory, ILoggerFactory? loggerFactory = null)
     {
         _config = config ?? throw new ArgumentNullException(nameof(config));
+        _httpClientFactory = httpClientFactory ?? throw new ArgumentNullException(nameof(httpClientFactory));
         _loggerFactory = loggerFactory ?? NullLoggerFactory.Instance;
         _logger = _loggerFactory.CreateLogger<RollbackCommand>();
     }
@@ -82,7 +84,8 @@ public class RollbackCommand
         }
 
         // Fetch current state from Graph
-        var exporter = new IntuneExporter(credential);
+        var graphFactory = new GraphClientFactory(_httpClientFactory);
+        var exporter = new IntuneExporter(credential, graphFactory);
         var progress = new Progress<string>(msg => _logger.LogDebug("{ProgressMessage}", msg));
 
         Dictionary<string, List<IntuneItem>> liveData;
@@ -136,7 +139,7 @@ public class RollbackCommand
         _logger.LogInformation("Found {DriftCount} drifted policies to roll back", rollbackItems.Count);
 
         // Perform rollback
-        var importer = new IntuneImporter(credential, _loggerFactory);
+        var importer = new IntuneImporter(credential, graphFactory, _loggerFactory);
         int successCount = 0;
         int errorCount = 0;
 
@@ -158,9 +161,18 @@ public class RollbackCommand
             {
                 _logger.LogInformation("Rolling back {Icon} {ContentType}: {PolicyName}...",
                     icon, change.ContentType, change.PolicyName);
-                await importer.ImportItemAsync(item, cancellationToken);
-                successCount++;
-                _logger.LogInformation("  → Rolled back successfully");
+                var result = await importer.ImportItemAsync(item, cancellationToken);
+                if (result.Success)
+                {
+                    successCount++;
+                    _logger.LogInformation("  → Rolled back successfully");
+                }
+                else
+                {
+                    _logger.LogError("  → Rollback failed for '{PolicyName}': {ErrorMessage}",
+                        change.PolicyName, result.ErrorMessage);
+                    errorCount++;
+                }
             }
             catch (Exception ex)
             {
