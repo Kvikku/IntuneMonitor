@@ -42,10 +42,22 @@ public class IntuneExporter
         { "#microsoft.graph.allDevicesAssignmentTarget", "All Devices" }
     };
 
+    /// <summary>Internal hook for tests to provide a custom HttpClient factory.</summary>
+    internal Func<CancellationToken, Task<HttpClient>>? HttpClientFactory { get; set; }
+
     public IntuneExporter(TokenCredential credential, ILoggerFactory? loggerFactory = null)
     {
         _credential = credential ?? throw new ArgumentNullException(nameof(credential));
         _logger = (loggerFactory ?? NullLoggerFactory.Instance).CreateLogger<IntuneExporter>();
+    }
+
+    private async Task<HttpClient> CreateHttpClientAsync(CancellationToken cancellationToken)
+    {
+        if (HttpClientFactory != null)
+            return await HttpClientFactory(cancellationToken);
+
+        var token = await GraphClientFactory.GetAccessTokenAsync(_credential, cancellationToken);
+        return GraphClientFactory.CreateHttpClient(token);
     }
 
     /// <summary>
@@ -63,8 +75,7 @@ public class IntuneExporter
         if (!IntuneContentTypes.GraphEndpoints.TryGetValue(contentType, out var endpoint))
             throw new ArgumentException($"Unsupported content type: '{contentType}'", nameof(contentType));
 
-        var token = await GraphClientFactory.GetAccessTokenAsync(_credential, cancellationToken);
-        using var httpClient = GraphClientFactory.CreateHttpClient(token);
+        using var httpClient = await CreateHttpClientAsync(cancellationToken);
 
         var items = new List<IntuneItem>();
         var url = $"https://graph.microsoft.com/beta/{endpoint}";

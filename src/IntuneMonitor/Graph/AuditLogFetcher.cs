@@ -38,6 +38,18 @@ public class AuditLogFetcher
         _logger = (loggerFactory ?? NullLoggerFactory.Instance).CreateLogger<AuditLogFetcher>();
     }
 
+    /// <summary>Internal hook for tests to provide a custom HttpClient factory.</summary>
+    internal Func<CancellationToken, Task<HttpClient>>? HttpClientFactory { get; set; }
+
+    private async Task<HttpClient> CreateHttpClientAsync(CancellationToken cancellationToken)
+    {
+        if (HttpClientFactory != null)
+            return await HttpClientFactory(cancellationToken);
+
+        var token = await GraphClientFactory.GetAccessTokenAsync(_credential, cancellationToken);
+        return GraphClientFactory.CreateHttpClient(token);
+    }
+
     /// <summary>
     /// Fetches audit events for the specified number of days.
     /// </summary>
@@ -51,8 +63,7 @@ public class AuditLogFetcher
         if (days < 1 || days > 30)
             throw new ArgumentOutOfRangeException(nameof(days), days, "Days must be between 1 and 30.");
 
-        var token = await GraphClientFactory.GetAccessTokenAsync(_credential, cancellationToken);
-        using var httpClient = GraphClientFactory.CreateHttpClient(token);
+        using var httpClient = await CreateHttpClientAsync(cancellationToken);
 
         var since = DateTime.UtcNow.AddDays(-days).ToString("yyyy-MM-ddTHH:mm:ssZ");
         var filter = Uri.EscapeDataString($"activityDateTime ge {since}");
