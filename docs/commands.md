@@ -117,9 +117,11 @@ dotnet run -- list-types
 
 Compares two backup snapshots offline — no live tenant connection needed. Useful for reviewing what changed between two exports.
 
+Both `--source` and `--target` should point to a **backup root directory** — the same path you use for `Backup.Path`. The command uses `LocalFileStorage` internally and loads the most recent timestamped run folder (e.g., `2024-01-15_143022/`) from each root.
+
 ```bash
-# Compare two backup directories
-dotnet run -- diff --source ./backup-2024-01-01 --target ./backup-2024-02-01
+# Compare two backup roots (each containing timestamped run folders)
+dotnet run -- diff --source ./backup-prod --target ./backup-staging
 
 # With HTML report output
 dotnet run -- diff --source ./backup-old --target ./backup-new --html-report ./diff-report.html
@@ -129,8 +131,8 @@ dotnet run -- diff --source ./backup-old --target ./backup-new --html-report ./d
 
 | Option | Description |
 |---|---|
-| `--source <path>` | Path to the older (baseline) backup snapshot (required) |
-| `--target <path>` | Path to the newer backup snapshot (required) |
+| `--source <path>` | Path to the baseline backup root directory (required) |
+| `--target <path>` | Path to the newer backup root directory (required) |
 | `--html-report <path>` | Write an HTML diff report |
 | `--json-report <path>` | Write a JSON diff report |
 
@@ -181,7 +183,7 @@ dotnet run -- dependency --json-report ./dependencies.json
 
 ## `validate`
 
-Validates backup files for structural integrity, checking that all expected content types are present and JSON files are well-formed.
+Validates existing backup files for structural integrity, checking that stored content types are readable and JSON files are well-formed. It does not currently report missing content-type folders — only content types already present in storage are validated.
 
 ```bash
 dotnet run -- validate
@@ -216,25 +218,27 @@ dotnet run -- audit-log --days 7 --json-report ./audit-report.json
 
 ## Supported Content Types
 
-| Content Type | Graph Endpoint | Backup File |
+| Content Type | Graph Endpoint | Backup Folder |
 |---|---|---|
-| SettingsCatalog | `configurationPolicies` | `settingscatalog.json` |
-| DeviceCompliancePolicy | `deviceCompliancePolicies` | `devicecompliance.json` |
-| DeviceConfigurationPolicy | `deviceConfigurations` | `deviceconfiguration.json` |
-| WindowsDriverUpdate | `windowsDriverUpdateProfiles` | `windowsdriverupdate.json` |
-| WindowsFeatureUpdate | `windowsFeatureUpdateProfiles` | `windowsfeatureupdate.json` |
-| WindowsQualityUpdateProfile | `windowsQualityUpdateProfiles` | `windowsqualityupdateprofile.json` |
-| WindowsQualityUpdatePolicy | `windowsQualityUpdatePolicies` | `windowsqualityupdatepolicy.json` |
-| PowerShellScript | `deviceManagementScripts` | `powershellscript.json` |
-| ProactiveRemediation | `deviceHealthScripts` | `proactiveremediation.json` |
-| MacOSShellScript | `deviceShellScripts` | `macosshellscript.json` |
-| WindowsAutoPilotProfile | `windowsAutopilotDeploymentProfiles` | `windowsautopilot.json` |
-| AppleBYODEnrollmentProfile | `appleUserInitiatedEnrollmentProfiles` | `applebyodenrollment.json` |
-| AssignmentFilter | `assignmentFilters` | `assignmentfilter.json` |
-| ConditionalAccessPolicy | `conditionalAccess/policies` | `conditionalaccesspolicy.json` |
-| AppProtectionPolicy | `managedAppPolicies` | `appprotectionpolicy.json` |
-| AppConfigurationPolicy | `mobileAppConfigurations` | `appconfigurationpolicy.json` |
-| EndpointSecurityPolicy | `intents` | `endpointsecuritypolicy.json` |
-| EnrollmentRestriction | `deviceEnrollmentConfigurations` | `enrollmentrestriction.json` |
-| RoleDefinition | `roleDefinitions` | `roledefinition.json` |
-| NamedLocation | `conditionalAccess/namedLocations` | `namedlocation.json` |
+| SettingsCatalog | `configurationPolicies` | `SettingsCatalog/` |
+| DeviceCompliancePolicy | `deviceCompliancePolicies` | `DeviceCompliancePolicy/` |
+| DeviceConfigurationPolicy | `deviceConfigurations` | `DeviceConfigurationPolicy/` |
+| WindowsDriverUpdate | `windowsDriverUpdateProfiles` | `WindowsDriverUpdate/` |
+| WindowsFeatureUpdate | `windowsFeatureUpdateProfiles` | `WindowsFeatureUpdate/` |
+| WindowsQualityUpdateProfile | `windowsQualityUpdateProfiles` | `WindowsQualityUpdateProfile/` |
+| WindowsQualityUpdatePolicy | `windowsQualityUpdatePolicies` | `WindowsQualityUpdatePolicy/` |
+| PowerShellScript | `deviceManagementScripts` | `PowerShellScript/` |
+| ProactiveRemediation | `deviceHealthScripts` | `ProactiveRemediation/` |
+| MacOSShellScript | `deviceShellScripts` | `MacOSShellScript/` |
+| WindowsAutoPilotProfile | `windowsAutopilotDeploymentProfiles` | `WindowsAutoPilotProfile/` |
+| AppleBYODEnrollmentProfile | `appleUserInitiatedEnrollmentProfiles` | `AppleBYODEnrollmentProfile/` |
+| AssignmentFilter | `assignmentFilters` | `AssignmentFilter/` |
+| ConditionalAccessPolicy | `conditionalAccess/policies` | `ConditionalAccessPolicy/` |
+| AppProtectionPolicy | `managedAppPolicies` | `AppProtectionPolicy/` |
+| AppConfigurationPolicy | `mobileAppConfigurations` | `AppConfigurationPolicy/` |
+| EndpointSecurityPolicy | `intents` | `EndpointSecurityPolicy/` |
+| EnrollmentRestriction | `deviceEnrollmentConfigurations` | `EnrollmentRestriction/` |
+| RoleDefinition | `roleDefinitions` | `RoleDefinition/` |
+| NamedLocation | `conditionalAccess/namedLocations` | `NamedLocation/` |
+
+> **Note:** LocalFile and Git storage write one JSON file per policy item inside each folder (e.g., `SettingsCatalog/My_Policy_4a2b3c4d.json`). Azure Blob Storage uses a single blob per content type instead.

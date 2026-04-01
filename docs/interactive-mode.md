@@ -61,20 +61,22 @@ Use **↑/↓** to navigate and **Enter** to select.
 
 ## Diff Workflow
 
-1. **Source backup path** — Enter the path to the older baseline backup snapshot
-2. **Target backup path** — Enter the path to the newer backup snapshot
-3. **Generate HTML diff report?** — Toggle and set path
-4. Compares the two snapshots offline and shows the differences
+1. **Source backup path** — Enter the path to the older baseline backup root
+2. **Target backup path** — Enter the path to the newer backup root
+3. **Filter content types?** — Select specific types or diff all
+4. **Generate HTML diff report?** — Toggle and set path
+5. Compares the two snapshots offline and shows the differences
 
 ## Dependency Analysis Workflow
 
-1. **Generate JSON report?** — Toggle and optionally set a custom path
-2. Analyzes policy relationships across the backup
+1. **Filter content types?** — Select specific types or analyze all
+2. **Generate JSON report?** — Toggle and optionally set a custom path
+3. Analyzes policy relationships across the backup
 
 ## Validate Workflow
 
 1. Runs backup validation automatically against the configured backup path
-2. Reports any missing or malformed backup files
+2. Validates the structure and readability of backup files for stored content types (flags malformed or unreadable files)
 
 ## Settings Overview
 

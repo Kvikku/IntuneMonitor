@@ -167,28 +167,30 @@ See [Commands reference](docs/commands.md) for all options. Run without argument
 
 ## Supported Content Types
 
-| Content Type | Graph Endpoint | Backup File |
+| Content Type | Graph Endpoint | Backup Folder |
 |---|---|---|
-| SettingsCatalog | `configurationPolicies` | `settingscatalog.json` |
-| DeviceCompliancePolicy | `deviceCompliancePolicies` | `devicecompliance.json` |
-| DeviceConfigurationPolicy | `deviceConfigurations` | `deviceconfiguration.json` |
-| WindowsDriverUpdate | `windowsDriverUpdateProfiles` | `windowsdriverupdate.json` |
-| WindowsFeatureUpdate | `windowsFeatureUpdateProfiles` | `windowsfeatureupdate.json` |
-| WindowsQualityUpdateProfile | `windowsQualityUpdateProfiles` | `windowsqualityupdateprofile.json` |
-| WindowsQualityUpdatePolicy | `windowsQualityUpdatePolicies` | `windowsqualityupdatepolicy.json` |
-| PowerShellScript | `deviceManagementScripts` | `powershellscript.json` |
-| ProactiveRemediation | `deviceHealthScripts` | `proactiveremediation.json` |
-| MacOSShellScript | `deviceShellScripts` | `macosshellscript.json` |
-| WindowsAutoPilotProfile | `windowsAutopilotDeploymentProfiles` | `windowsautopilot.json` |
-| AppleBYODEnrollmentProfile | `appleUserInitiatedEnrollmentProfiles` | `applebyodenrollment.json` |
-| AssignmentFilter | `assignmentFilters` | `assignmentfilter.json` |
-| ConditionalAccessPolicy | `conditionalAccess/policies` | `conditionalaccesspolicy.json` |
-| AppProtectionPolicy | `managedAppPolicies` | `appprotectionpolicy.json` |
-| AppConfigurationPolicy | `mobileAppConfigurations` | `appconfigurationpolicy.json` |
-| EndpointSecurityPolicy | `intents` | `endpointsecuritypolicy.json` |
-| EnrollmentRestriction | `deviceEnrollmentConfigurations` | `enrollmentrestriction.json` |
-| RoleDefinition | `roleDefinitions` | `roledefinition.json` |
-| NamedLocation | `conditionalAccess/namedLocations` | `namedlocation.json` |
+| SettingsCatalog | `configurationPolicies` | `SettingsCatalog/` |
+| DeviceCompliancePolicy | `deviceCompliancePolicies` | `DeviceCompliancePolicy/` |
+| DeviceConfigurationPolicy | `deviceConfigurations` | `DeviceConfigurationPolicy/` |
+| WindowsDriverUpdate | `windowsDriverUpdateProfiles` | `WindowsDriverUpdate/` |
+| WindowsFeatureUpdate | `windowsFeatureUpdateProfiles` | `WindowsFeatureUpdate/` |
+| WindowsQualityUpdateProfile | `windowsQualityUpdateProfiles` | `WindowsQualityUpdateProfile/` |
+| WindowsQualityUpdatePolicy | `windowsQualityUpdatePolicies` | `WindowsQualityUpdatePolicy/` |
+| PowerShellScript | `deviceManagementScripts` | `PowerShellScript/` |
+| ProactiveRemediation | `deviceHealthScripts` | `ProactiveRemediation/` |
+| MacOSShellScript | `deviceShellScripts` | `MacOSShellScript/` |
+| WindowsAutoPilotProfile | `windowsAutopilotDeploymentProfiles` | `WindowsAutoPilotProfile/` |
+| AppleBYODEnrollmentProfile | `appleUserInitiatedEnrollmentProfiles` | `AppleBYODEnrollmentProfile/` |
+| AssignmentFilter | `assignmentFilters` | `AssignmentFilter/` |
+| ConditionalAccessPolicy | `conditionalAccess/policies` | `ConditionalAccessPolicy/` |
+| AppProtectionPolicy | `managedAppPolicies` | `AppProtectionPolicy/` |
+| AppConfigurationPolicy | `mobileAppConfigurations` | `AppConfigurationPolicy/` |
+| EndpointSecurityPolicy | `intents` | `EndpointSecurityPolicy/` |
+| EnrollmentRestriction | `deviceEnrollmentConfigurations` | `EnrollmentRestriction/` |
+| RoleDefinition | `roleDefinitions` | `RoleDefinition/` |
+| NamedLocation | `conditionalAccess/namedLocations` | `NamedLocation/` |
+
+> **Note:** LocalFile and Git storage write one JSON file per policy item inside each folder (e.g., `SettingsCatalog/My_Policy_4a2b3c4d.json`). Azure Blob Storage uses a single blob per content type instead.
 
 ---
 

@@ -11,7 +11,7 @@ src/IntuneMonitor/
 ├── Commands/           Command implementations
 │   ├── AuditLogCommand.cs
 │   ├── CliHelpers.cs
-│   ├── CommandBuilder.cs
+│   ├── CommandBuilder.cs      (also registers `validate` inline via BackupValidator)
 │   ├── DependencyCommand.cs
 │   ├── DiffCommand.cs
 │   ├── ExportCommand.cs
