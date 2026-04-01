@@ -1,3 +1,4 @@
+using System.Net;
 using System.Text.Json;
 using Azure.Core;
 using IntuneMonitor.Models;
@@ -20,6 +21,15 @@ public class AuditLogFetcher
 
     /// <summary>Small delay between page requests to reduce throttling risk.</summary>
     private static readonly TimeSpan PageRequestDelay = TimeSpan.FromMilliseconds(500);
+
+    /// <summary>Maximum number of retry attempts for transient failures.</summary>
+    private const int MaxAttempts = 5;
+
+    /// <summary>Default delay in seconds when no Retry-After header is present on a 429 response.</summary>
+    private const int DefaultRetryDelaySeconds = 30;
+
+    /// <summary>Base delay in seconds for exponential backoff on server errors.</summary>
+    private const int BaseBackoffSeconds = 5;
 
     public AuditLogFetcher(TokenCredential credential, ILoggerFactory? loggerFactory = null)
     {
@@ -228,6 +238,20 @@ public class AuditLogFetcher
             });
         }
         return resources;
+    }
+
+    private static int GetRetryAfterSeconds(HttpResponseMessage response)
+    {
+        if (response.Headers.RetryAfter?.Delta is { } delta)
+            return Math.Max(1, (int)delta.TotalSeconds);
+
+        if (response.Headers.RetryAfter?.Date is { } date)
+        {
+            var wait = (int)(date - DateTimeOffset.UtcNow).TotalSeconds;
+            return Math.Max(1, wait);
+        }
+
+        return DefaultRetryDelaySeconds;
     }
 
 }

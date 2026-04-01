@@ -17,7 +17,6 @@ public class IntuneImporter
     /// <summary>Internal hook for tests to provide a custom HttpClient factory.</summary>
     internal Func<CancellationToken, Task<HttpClient>>? HttpClientFactory { get; set; }
 
-    public IntuneImporter(TokenCredential credential)
     public IntuneImporter(TokenCredential credential, ILoggerFactory? loggerFactory = null)
     {
         _credential = credential ?? throw new ArgumentNullException(nameof(credential));
