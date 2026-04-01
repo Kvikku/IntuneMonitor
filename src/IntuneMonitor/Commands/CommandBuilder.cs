@@ -192,7 +192,7 @@ internal static class CommandBuilder
     {
         var command = new Command("list-types", "Display all supported Intune content types.");
         rootCommand.AddCommand(command);
-        command.SetHandler((_) => ConsoleUI.WriteContentTypesTable());
+        command.SetHandler((context) => ConsoleUI.WriteContentTypesTable());
     }
 
     private static void RegisterDiffCommand(

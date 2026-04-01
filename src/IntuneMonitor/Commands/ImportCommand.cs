@@ -126,7 +126,9 @@ public class ImportCommand
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogError(ex, "Failed to import '{ItemName}'", item.Name);
+                    var result = ImportResult.FailedWithException(item.Name, ex);
+                    LogImportError(result);
+                    errors.Add(result);
                     errorCount++;
                 }
             }

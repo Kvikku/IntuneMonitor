@@ -81,9 +81,12 @@ public record ImportResult
                 $"Failed to import '{policyName}' ({(int)statusCode} {statusCode}): {TruncateBody(errorBody)}"
         };
 
+    /// <summary>Maximum number of characters to include from the Graph API error body.</summary>
+    private const int MaxErrorBodyLength = 500;
+
     private static string TruncateBody(string? body) =>
         string.IsNullOrWhiteSpace(body) ? string.Empty :
-        body.Length > 500 ? body[..500] + "..." : body;
+        body.Length > MaxErrorBodyLength ? body[..MaxErrorBodyLength] + "..." : body;
 }
 
 /// <summary>

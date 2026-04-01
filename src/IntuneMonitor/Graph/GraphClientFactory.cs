@@ -48,7 +48,8 @@ public class GraphClientFactory
 
     /// <summary>
     /// Creates an <see cref="HttpClient"/> from the factory, pre-configured with
-    /// the provided bearer token. The Accept header is set during client registration.
+    /// the provided bearer token. The Accept header is configured at client registration
+    /// time in Program.cs via <c>AddHttpClient(HttpClientName, ...)</c>.
     /// </summary>
     public HttpClient CreateHttpClient(string bearerToken)
     {
