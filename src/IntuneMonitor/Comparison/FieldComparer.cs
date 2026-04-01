@@ -164,7 +164,7 @@ internal static class FieldComparer
         }
     }
 
-    internal static string? Serialize(JsonElement? element)
+    private static string? Serialize(JsonElement? element)
     {
         if (element == null) return null;
         return element.Value.ValueKind == JsonValueKind.String

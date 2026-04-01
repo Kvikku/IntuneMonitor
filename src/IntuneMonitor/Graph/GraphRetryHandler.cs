@@ -117,18 +117,25 @@ internal static class GraphRetryHandler
         CancellationToken cancellationToken,
         int maxAttempts = DefaultMaxAttempts)
     {
+        // Pre-read the content bytes once, outside the retry loop, for efficiency
+        byte[]? contentBytes = null;
+        System.Net.Http.Headers.MediaTypeHeaderValue? contentType = null;
+        if (content != null)
+        {
+            contentBytes = await content.ReadAsByteArrayAsync(cancellationToken);
+            contentType = content.Headers.ContentType;
+        }
+
         for (int attempt = 0; attempt < maxAttempts; attempt++)
         {
             cancellationToken.ThrowIfCancellationRequested();
 
             using var request = new HttpRequestMessage(method, url);
-            if (content != null)
+            if (contentBytes != null)
             {
-                // Create a copy of content for retry since HttpContent can only be consumed once
-                var bytes = await content.ReadAsByteArrayAsync(cancellationToken);
-                request.Content = new ByteArrayContent(bytes);
-                if (content.Headers.ContentType != null)
-                    request.Content.Headers.ContentType = content.Headers.ContentType;
+                request.Content = new ByteArrayContent(contentBytes);
+                if (contentType != null)
+                    request.Content.Headers.ContentType = contentType;
             }
 
             HttpResponseMessage response;
