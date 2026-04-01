@@ -16,7 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Multi-tenant TenantProfiles** — define named tenant profiles in configuration for easy switching between tenants
 - **Azure Blob Storage backend** — store backups in Azure Blob Storage in addition to local file system and Git
 - **Graph change notification subscriptions** — `GraphSubscriptionManager` for receiving real-time change notifications from Microsoft Graph
-- 7 new Intune content types (20 total): Windows Autopilot, macOS Custom Attributes, Platform Scripts (macOS), Endpoint Privilege Management, Disk Encryption, Firewall Rules, Managed App Policies
+- 7 new Intune content types (20 total): Conditional Access Policies, App Protection Policies (managedAppPolicies), App Configuration Policies, Endpoint Security Policies, Enrollment Restrictions, Role Definitions, Named Locations
 - **ContentTypeResolver** shared helper for unified content type lookups across commands
 - **Shared helpers** — `JsonDefaults`, `GraphClientFactory`, `BackupFileHelpers`, `ReportWriter`, `HtmlReportHelpers` extracted to reduce duplication
 
@@ -57,7 +57,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **Export command** — download Intune policies to JSON backup files with per-item storage and automatic cleanup
+- **Export command** — download Intune policies to JSON backup files with per-item storage
 - **Import command** — restore policies from a backup into a target tenant (with `--dry-run` support)
 - **Monitor command** — compare live state against backup and detect configuration drift with severity levels
 - **Audit Log command** — fetch and summarize Intune audit log events (1–30 days) with throttling and retry logic
