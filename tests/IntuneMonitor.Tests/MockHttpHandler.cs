@@ -16,6 +16,12 @@ internal sealed class MockHttpHandler : HttpMessageHandler
     /// <summary>All HTTP requests sent through this handler, in order.</summary>
     public List<HttpRequestMessage> Requests { get; } = new();
 
+    /// <summary>
+    /// Buffered request bodies, in order. Use this to read request content after the call
+    /// completes (since the underlying <see cref="HttpRequestMessage"/> may be disposed).
+    /// </summary>
+    public List<string?> RequestBodies { get; } = new();
+
     /// <summary>Enqueue a JSON response with the given status code and body object.</summary>
     public void Enqueue(HttpStatusCode statusCode, object body)
     {
@@ -59,15 +65,22 @@ internal sealed class MockHttpHandler : HttpMessageHandler
         });
     }
 
-    protected override Task<HttpResponseMessage> SendAsync(
+    protected override async Task<HttpResponseMessage> SendAsync(
         HttpRequestMessage request, CancellationToken cancellationToken)
     {
+        // Buffer the body now — the HttpRequestMessage (and its ByteArrayContent) may be
+        // disposed by the caller before the test reads it back via Requests[i].Content.
+        string? body = request.Content != null
+            ? await request.Content.ReadAsStringAsync(cancellationToken)
+            : null;
+
         Requests.Add(request);
+        RequestBodies.Add(body);
 
         if (_requestIndex < _responses.Count)
         {
             var factory = _responses[_requestIndex++];
-            return Task.FromResult(factory(request));
+            return factory(request);
         }
 
         throw new InvalidOperationException(

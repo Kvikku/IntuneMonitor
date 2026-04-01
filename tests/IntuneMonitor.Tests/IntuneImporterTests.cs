@@ -63,8 +63,8 @@ public class IntuneImporterTests
         await _importer.ImportItemAsync(item);
 
         var request = _handler.Requests[0];
-        var body = await request.Content!.ReadAsStringAsync();
-        var payload = JsonSerializer.Deserialize<JsonElement>(body);
+        var body = _handler.RequestBodies[0];
+        var payload = JsonSerializer.Deserialize<JsonElement>(body!);
 
         Assert.Equal("TestPolicy", payload.GetProperty("displayName").GetString());
         Assert.Equal("Test", payload.GetProperty("description").GetString());
@@ -99,10 +99,8 @@ public class IntuneImporterTests
 
         await _importer.ImportItemAsync(item);
 
-        var body = await _handler.Requests[0].Content!.ReadAsStringAsync();
-        var payload = JsonSerializer.Deserialize<JsonElement>(body);
-
-        // Read-only fields should be stripped
+        var body = _handler.RequestBodies[0];
+        var payload = JsonSerializer.Deserialize<JsonElement>(body!);
         Assert.False(payload.TryGetProperty("id", out _));
         Assert.False(payload.TryGetProperty("createdDateTime", out _));
         Assert.False(payload.TryGetProperty("lastModifiedDateTime", out _));
@@ -140,8 +138,8 @@ public class IntuneImporterTests
 
         await _importer.ImportItemAsync(item);
 
-        var body = await _handler.Requests[0].Content!.ReadAsStringAsync();
-        var payload = JsonSerializer.Deserialize<JsonElement>(body);
+        var body = _handler.RequestBodies[0];
+        var payload = JsonSerializer.Deserialize<JsonElement>(body!);
 
         Assert.True(payload.TryGetProperty("scheduledActionsForRule", out var rules));
         Assert.Equal(JsonValueKind.Array, rules.ValueKind);
@@ -235,7 +233,11 @@ public class IntuneImporterTests
     [Fact]
     public async Task ImportItemAsync_ServerError_ThrowsInvalidOperationException()
     {
-        _handler.EnqueueError(HttpStatusCode.InternalServerError, "Server error");
+        // PostWithRetryAsync retries 5xx up to DefaultMaxAttempts (5) times.
+        // Queue enough responses so the final attempt returns the 500 and ImportItemAsync throws.
+        const int maxAttempts = 5;
+        for (int i = 0; i < maxAttempts; i++)
+            _handler.EnqueueError(HttpStatusCode.InternalServerError, "Server error");
 
         var item = MakeItem("TestPolicy", IntuneContentTypes.DeviceCompliancePolicy,
             """{"displayName":"TestPolicy"}""");

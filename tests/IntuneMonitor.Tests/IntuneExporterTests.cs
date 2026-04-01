@@ -120,13 +120,15 @@ public class IntuneExporterTests
     // -----------------------------------------------------------------------
 
     [Fact]
-    public async Task ExportContentTypeAsync_HttpError_ThrowsHttpRequestException()
+    public async Task ExportContentTypeAsync_HttpError_ReturnsEmptyList()
     {
         _handler.EnqueueError(HttpStatusCode.Forbidden, "Access denied");
 
-        // EnsureSuccessStatusCode throws HttpRequestException on non-2xx
-        await Assert.ThrowsAsync<HttpRequestException>(
-            () => _exporter.ExportContentTypeAsync(IntuneContentTypes.AssignmentFilter));
+        // GraphRetryHandler logs the error and returns null, so ExportContentTypeAsync returns an empty list
+        var result = await _exporter.ExportContentTypeAsync(IntuneContentTypes.AssignmentFilter);
+
+        Assert.Empty(result);
+        Assert.Single(_handler.Requests);
     }
 
     [Fact]
