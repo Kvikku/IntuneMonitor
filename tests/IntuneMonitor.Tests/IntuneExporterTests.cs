@@ -669,12 +669,22 @@ public class IntuneExporterTests
         });
 
         var reported = new List<string>();
-        var progress = new Progress<string>(msg => reported.Add(msg));
+        var progress = new SynchronousProgress<string>(msg => reported.Add(msg));
 
         await _exporter.ExportContentTypeAsync(IntuneContentTypes.AssignmentFilter, progress);
 
-        // Progress should have been reported
-        // Note: Progress<T> posts via SynchronizationContext, so it may be async
-        // In test context, messages may or may not have arrived yet
+        Assert.NotEmpty(reported);
+        Assert.Contains(reported, msg => msg.Contains("Policy1"));
+    }
+
+    /// <summary>
+    /// Synchronous IProgress implementation that invokes the callback immediately
+    /// on the calling thread, avoiding SynchronizationContext timing issues.
+    /// </summary>
+    private sealed class SynchronousProgress<T> : IProgress<T>
+    {
+        private readonly Action<T> _handler;
+        public SynchronousProgress(Action<T> handler) => _handler = handler;
+        public void Report(T value) => _handler(value);
     }
 }

@@ -41,6 +41,14 @@ public class AuditLogFetcher
     /// <summary>Internal hook for tests to provide a custom HttpClient factory.</summary>
     internal Func<CancellationToken, Task<HttpClient>>? HttpClientFactory { get; set; }
 
+    /// <summary>Internal hook for tests to replace Task.Delay with a no-op or fast implementation.</summary>
+    internal Func<TimeSpan, CancellationToken, Task>? DelayFunc { get; set; }
+
+    private Task DelayAsync(TimeSpan delay, CancellationToken cancellationToken) =>
+        DelayFunc != null
+            ? DelayFunc(delay, cancellationToken)
+            : Task.Delay(delay, cancellationToken);
+
     private async Task<HttpClient> CreateHttpClientAsync(CancellationToken cancellationToken)
     {
         if (HttpClientFactory != null)
@@ -108,7 +116,7 @@ public class AuditLogFetcher
 
             // Pace requests to reduce throttling risk
             if (url != null)
-                await Task.Delay(PageRequestDelay, cancellationToken);
+                await DelayAsync(PageRequestDelay, cancellationToken);
         }
 
         _logger.LogInformation("Fetched {TotalEvents} audit event(s) across {PageCount} page(s)", events.Count, pageCount);
@@ -135,7 +143,7 @@ public class AuditLogFetcher
             catch (HttpRequestException ex) when (attempt < MaxAttempts - 1)
             {
                 _logger.LogWarning(ex, "HTTP request failed (attempt {Attempt}/{MaxAttempts}), retrying...", attempt + 1, MaxAttempts);
-                await Task.Delay(TimeSpan.FromSeconds(DefaultRetryDelaySeconds), cancellationToken);
+                await DelayAsync(TimeSpan.FromSeconds(DefaultRetryDelaySeconds), cancellationToken);
                 continue;
             }
 
@@ -149,7 +157,7 @@ public class AuditLogFetcher
                     var retryAfter = GetRetryAfterSeconds(response);
                     _logger.LogWarning("Throttled (HTTP 429). Waiting {RetryAfterSeconds}s before retry (attempt {Attempt}/{MaxAttempts})",
                         retryAfter, attempt + 1, MaxAttempts);
-                    await Task.Delay(TimeSpan.FromSeconds(retryAfter), cancellationToken);
+                    await DelayAsync(TimeSpan.FromSeconds(retryAfter), cancellationToken);
                     continue;
                 }
 
@@ -158,7 +166,7 @@ public class AuditLogFetcher
                     var delay = (int)Math.Pow(2, attempt) * BaseBackoffSeconds;
                     _logger.LogWarning("Server error (HTTP {StatusCode}). Retrying in {Delay}s (attempt {Attempt}/{MaxAttempts})",
                         (int)response.StatusCode, delay, attempt + 1, MaxAttempts);
-                    await Task.Delay(TimeSpan.FromSeconds(delay), cancellationToken);
+                    await DelayAsync(TimeSpan.FromSeconds(delay), cancellationToken);
                     continue;
                 }
 

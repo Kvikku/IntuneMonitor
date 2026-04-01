@@ -18,6 +18,7 @@ public class AuditLogFetcherTests
     {
         _fetcher = new AuditLogFetcher(GraphTestHelpers.FakeCredential);
         _fetcher.HttpClientFactory = GraphTestHelpers.CreateClientFactory(_handler);
+        _fetcher.DelayFunc = (_, _) => Task.CompletedTask; // bypass real delays in tests
     }
 
     // -----------------------------------------------------------------------

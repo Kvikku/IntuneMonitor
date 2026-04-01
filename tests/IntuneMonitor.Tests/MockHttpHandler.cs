@@ -70,11 +70,7 @@ internal sealed class MockHttpHandler : HttpMessageHandler
             return Task.FromResult(factory(request));
         }
 
-        return Task.FromResult(new HttpResponseMessage(HttpStatusCode.InternalServerError)
-        {
-            Content = new StringContent(
-                """{"error":"No more responses queued in MockHttpHandler"}""",
-                Encoding.UTF8, "application/json")
-        });
+        throw new InvalidOperationException(
+            "MockHttpHandler has no more queued responses. Ensure the test enqueues enough responses for all expected requests.");
     }
 }
