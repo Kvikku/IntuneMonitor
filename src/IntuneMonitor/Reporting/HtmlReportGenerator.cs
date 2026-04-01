@@ -28,7 +28,7 @@ public static class HtmlReportGenerator
 
         if (!report.HasChanges)
         {
-            sb.AppendLine("<section class=\"no-changes\"><p>No changes detected.</p></section>");
+            HtmlReportHelpers.AppendNoDataSection(sb, "No changes detected.");
         }
         else
         {
@@ -98,7 +98,6 @@ public static class HtmlReportGenerator
 
     public static async Task WriteAsync(ChangeReport report, string outputPath, CancellationToken cancellationToken = default)
     {
-        var html = Generate(report);
-        await HtmlReportHelpers.WriteHtmlAsync(html, outputPath, cancellationToken);
+        await HtmlReportHelpers.GenerateAndWriteAsync(() => Generate(report), outputPath, cancellationToken);
     }
 }
