@@ -1,6 +1,6 @@
 # Commands
 
-IntuneMonitor provides five commands, each accessible via `dotnet run -- <command>` or through the [interactive menu](interactive-mode.md).
+IntuneMonitor provides nine commands, each accessible via `dotnet run -- <command>` or through the [interactive menu](interactive-mode.md).
 
 ## Global Options
 
@@ -105,10 +105,86 @@ See [Monitoring & Scheduling](monitoring.md) for details on drift detection logi
 
 ## `list-types`
 
-Displays all 13 supported content types in a formatted table.
+Displays all 20 supported content types in a formatted table.
 
 ```bash
 dotnet run -- list-types
+```
+
+---
+
+## `diff`
+
+Compares two backup snapshots offline — no live tenant connection needed. Useful for reviewing what changed between two exports.
+
+```bash
+# Compare two backup directories
+dotnet run -- diff --source ./backup-2024-01-01 --target ./backup-2024-02-01
+
+# With HTML report output
+dotnet run -- diff --source ./backup-old --target ./backup-new --html-report ./diff-report.html
+```
+
+### Options
+
+| Option | Description |
+|---|---|
+| `--source <path>` | Path to the older (baseline) backup snapshot (required) |
+| `--target <path>` | Path to the newer backup snapshot (required) |
+| `--html-report <path>` | Write an HTML diff report |
+| `--json-report <path>` | Write a JSON diff report |
+
+---
+
+## `rollback`
+
+Detects drift between the live tenant and the most recent backup, then restores policies to their backed-up state. Use `--dry-run` to preview what would be reverted.
+
+```bash
+# Preview what rollback would do
+dotnet run -- rollback --dry-run
+
+# Actually rollback drifted policies
+dotnet run -- rollback
+```
+
+### Options
+
+| Option | Description |
+|---|---|
+| `--dry-run` | Preview changes without modifying the tenant |
+
+> [!TIP]
+> Always run with `--dry-run` first to verify which policies would be reverted.
+
+---
+
+## `dependency`
+
+Analyzes policy relationships and dependencies across your backup, helping you understand which policies reference or depend on others.
+
+```bash
+# Analyze dependencies
+dotnet run -- dependency
+
+# Export as JSON
+dotnet run -- dependency --json-report ./dependencies.json
+```
+
+### Options
+
+| Option | Description |
+|---|---|
+| `--json-report <path>` | Write a JSON dependency report |
+
+---
+
+## `validate`
+
+Validates backup files for structural integrity, checking that all expected content types are present and JSON files are well-formed.
+
+```bash
+dotnet run -- validate
 ```
 
 ---
@@ -155,3 +231,10 @@ dotnet run -- audit-log --days 7 --json-report ./audit-report.json
 | WindowsAutoPilotProfile | `windowsAutopilotDeploymentProfiles` | `windowsautopilot.json` |
 | AppleBYODEnrollmentProfile | `appleUserInitiatedEnrollmentProfiles` | `applebyodenrollment.json` |
 | AssignmentFilter | `assignmentFilters` | `assignmentfilter.json` |
+| ConditionalAccessPolicy | `conditionalAccess/policies` | `conditionalaccesspolicy.json` |
+| AppProtectionPolicy | `managedAppPolicies` | `appprotectionpolicy.json` |
+| AppConfigurationPolicy | `mobileAppConfigurations` | `appconfigurationpolicy.json` |
+| EndpointSecurityPolicy | `intents` | `endpointsecuritypolicy.json` |
+| EnrollmentRestriction | `deviceEnrollmentConfigurations` | `enrollmentrestriction.json` |
+| RoleDefinition | `roleDefinitions` | `roledefinition.json` |
+| NamedLocation | `conditionalAccess/namedLocations` | `namedlocation.json` |

@@ -15,6 +15,10 @@ What would you like to do?
 > Export policies
   Import policies
   Monitor for changes
+  Rollback drift
+  Compare backups (diff)
+  Analyze dependencies
+  Validate backups
   Review audit logs
   List content types
   Settings overview
@@ -48,6 +52,29 @@ Use **↑/↓** to navigate and **Enter** to select.
 2. **Generate HTML audit log report?** — Toggle and optionally set a custom path
 3. **Generate JSON audit log report?** — Toggle and optionally set a custom path
 4. The command fetches events from Microsoft Graph and prints a summary to the console
+
+## Rollback Workflow
+
+1. **Filter content types?** — Select specific types or rollback all
+2. **Dry run?** — Defaults to "Yes" for safety — preview which policies would be reverted
+3. The rollback compares live state against backup and restores drifted policies
+
+## Diff Workflow
+
+1. **Source backup path** — Enter the path to the older baseline backup snapshot
+2. **Target backup path** — Enter the path to the newer backup snapshot
+3. **Generate HTML diff report?** — Toggle and set path
+4. Compares the two snapshots offline and shows the differences
+
+## Dependency Analysis Workflow
+
+1. **Generate JSON report?** — Toggle and optionally set a custom path
+2. Analyzes policy relationships across the backup
+
+## Validate Workflow
+
+1. Runs backup validation automatically against the configured backup path
+2. Reports any missing or malformed backup files
 
 ## Settings Overview
 

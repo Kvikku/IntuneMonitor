@@ -13,19 +13,22 @@
 
 | Feature | Details |
 |---|---|
-| **Authentication** | Client secret **or** X.509 certificate (file or cert store thumbprint) |
+| **Authentication** | Client secret, X.509 certificate (file or cert store), **or** Device Code Flow |
 | **Export** | Downloads all supported Intune content types to JSON backup files |
 | **Import** | Restores policies from a backup into a target tenant |
 | **Monitor** | Compares current live state with the backup and reports additions, removals, and field-level modifications |
-| **HTML Reports** | Self-contained HTML dashboards for export summaries and change reports |
-| **Storage backends** | Local file system **or** Git repository (auto-commit + push) |
+| **Rollback** | Detect drift and automatically revert policies to their backed-up state |
+| **Diff** | Offline comparison of two backup snapshots without a live tenant connection |
+| **Notifications** | Teams, Slack, and Email alerts for drift detection |
+| **HTML Reports** | Self-contained HTML dashboards for export summaries, change reports, and audit logs |
+| **Storage backends** | Local file system, Git repository (auto-commit + push), **or** Azure Blob Storage |
 | **Scheduling** | Run once (`--interval 0`) or loop on a configurable interval |
 | **Audit Logs** | Fetch and summarize Intune audit events with HTML/JSON reporting |
 | **Logging** | Structured logging via `Microsoft.Extensions.Logging` with configurable verbosity (`--verbosity`) |
-| **Configuration** | `appsettings.json`, environment variables, and/or CLI flags |
+| **Configuration** | `appsettings.json`, environment variables, CLI flags, **or** named tenant profiles |
 ---
 
-**Export** 13 Intune policy types to JSON · **Import** them into any tenant · **Monitor** for configuration drift  
+**Export** 20 Intune policy types to JSON · **Import** them into any tenant · **Monitor** for configuration drift  
 Works interactively, in CI/CD pipelines, Azure Automation runbooks, or as a scheduled task.
 
 </div>
@@ -34,14 +37,16 @@ Works interactively, in CI/CD pipelines, Azure Automation runbooks, or as a sche
 
 ## Highlights
 
-- **One CLI, four commands** — `export`, `import`, `monitor`, `audit-log` — plus `list-types` for discovery
+- **Nine CLI commands** — `export`, `import`, `monitor`, `rollback`, `diff`, `dependency`, `validate`, `audit-log`, and `list-types`
 - **Interactive mode** — run with no arguments for a menu-driven UI with arrow-key navigation
-- **13 policy types** — Settings Catalog, Compliance, Device Config, Scripts, Autopilot, Driver/Feature/Quality Updates, Assignment Filters, and more
-- **Git-native backups** — every export becomes a versioned commit, auto-pushed to your remote
+- **20 policy types** — Settings Catalog, Compliance, Device Config, Conditional Access, App Protection, Endpoint Security, Scripts, Autopilot, and more
+- **Three storage backends** — local file system, Git (versioned commits, auto-pushed), or Azure Blob Storage
 - **Deep diff engine** — field-level change detection with severity levels (Info / Warning / Critical)
-- **HTML dashboards** — self-contained export summaries and change reports, auto-opened in the browser
-- **Flexible auth** — client secret *or* X.509 certificate (PFX file, PEM, or Windows cert-store thumbprint)
+- **HTML dashboards** — self-contained export summaries, change reports, and audit logs, auto-opened in the browser
+- **Drift notifications** — Teams, Slack, or Email alerts when configuration drift is detected
+- **Flexible auth** — client secret, X.509 certificate (PFX, PEM, cert-store thumbprint), or Device Code Flow
 - **Zero-config scheduling** — built-in polling loop or run once for external schedulers
+- **Multi-tenant profiles** — define named tenant profiles in configuration for easy switching
 - **Config anywhere** — `appsettings.json`, environment variables (`INTUNEMONITOR_` prefix), or CLI flags
 
 ---
@@ -138,13 +143,19 @@ Full documentation is in the [`docs/`](docs/) folder:
 | `export` | Download all Intune policies to backup storage |
 | `import` | Restore policies from backup into the tenant |
 | `monitor` | Compare live state against backup, report drift |
+| `rollback` | Detect drift and revert policies to backed-up state |
+| `diff` | Compare two backup snapshots offline |
+| `dependency` | Analyze policy relationships and dependencies |
+| `validate` | Validate backup files for integrity |
 | `audit-log` | Review Intune audit logs and summarize changes |
-| `list-types` | Display all 13 supported content types |
+| `list-types` | Display all 20 supported content types |
 
 ```bash
 dotnet run -- export                                  # Export all policies
 dotnet run -- import --dry-run                        # Preview an import
 dotnet run -- monitor --interval 30 --changes-only    # Continuous drift detection
+dotnet run -- rollback --dry-run                      # Preview drift rollback
+dotnet run -- diff --source ./backup-1 --target ./backup-2  # Compare two backups
 dotnet run -- audit-log --days 7                      # Review last 7 days of audit logs
 dotnet run -- list-types                              # Show supported types
 dotnet run                                            # Interactive menu
@@ -171,6 +182,13 @@ See [Commands reference](docs/commands.md) for all options. Run without argument
 | WindowsAutoPilotProfile | `windowsAutopilotDeploymentProfiles` | `windowsautopilot.json` |
 | AppleBYODEnrollmentProfile | `appleUserInitiatedEnrollmentProfiles` | `applebyodenrollment.json` |
 | AssignmentFilter | `assignmentFilters` | `assignmentfilter.json` |
+| ConditionalAccessPolicy | `conditionalAccess/policies` | `conditionalaccesspolicy.json` |
+| AppProtectionPolicy | `managedAppPolicies` | `appprotectionpolicy.json` |
+| AppConfigurationPolicy | `mobileAppConfigurations` | `appconfigurationpolicy.json` |
+| EndpointSecurityPolicy | `intents` | `endpointsecuritypolicy.json` |
+| EnrollmentRestriction | `deviceEnrollmentConfigurations` | `enrollmentrestriction.json` |
+| RoleDefinition | `roleDefinitions` | `roledefinition.json` |
+| NamedLocation | `conditionalAccess/namedLocations` | `namedlocation.json` |
 
 ---
 
@@ -228,19 +246,20 @@ dotnet test
 
 ```
 src/IntuneMonitor/
-├── Authentication/     CredentialFactory (secret + certificate)
-├── Commands/           Export, Import, Monitor, AuditLog commands
-├── Comparison/         PolicyComparer — deep diff engine
+├── Authentication/     CredentialFactory (secret, certificate, device code)
+├── Commands/           Export, Import, Monitor, Rollback, Diff, Dependency, Validate, AuditLog
+├── Comparison/         PolicyComparer, FieldComparer, AssignmentComparer, ChangeBuilder
 ├── Config/             Strongly-typed configuration POCOs
-├── Graph/              IntuneExporter, IntuneImporter, AuditLogFetcher (Graph API)
-├── Models/             IntuneItem, BackupDocument, ChangeReport, AuditModels
-├── Reporting/          HtmlReportGenerator, HtmlExportReportGenerator, HtmlAuditReportGenerator, HtmlTheme
-├── Storage/            IBackupStorage → LocalFileStorage, GitStorage
-├── UI/                 ConsoleUI (Spectre.Console) + InteractiveMenu
+├── Graph/              IntuneExporter, IntuneImporter, AuditLogFetcher, GraphRetryHandler
+├── Models/             IntuneItem, BackupDocument, ChangeReport, ImportResult, AuditModels
+├── Notifications/      INotificationSender — Teams, Slack, Email
+├── Reporting/          HTML, CSV, and JSON report generators
+├── Storage/            IBackupStorage → LocalFileStorage, GitStorage, AzureBlobStorage
+├── UI/                 ConsoleUI (Spectre.Console) + InteractiveMenu + MenuConstants
 └── Program.cs          Entry point — CLI routing + interactive menu
 
 tests/IntuneMonitor.Tests/
-└── PolicyComparerTests.cs + additional test files
+└── 25 test files (PolicyComparer, Graph clients, commands, storage, notifications, etc.)
 
 docs/                   Full documentation
 ```

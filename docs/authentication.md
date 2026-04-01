@@ -1,6 +1,12 @@
 # Authentication
 
-IntuneMonitor supports two authentication methods against Microsoft Entra ID. Both use app-only (daemon) credentials — no user sign-in required.
+IntuneMonitor supports three authentication methods against Microsoft Entra ID.
+
+| Method | Use Case |
+|---|---|
+| **Client Secret** | Simplest — good for development and automation |
+| **Certificate** | More secure — recommended for production |
+| **Device Code Flow** | Interactive browser-based sign-in — for environments without app secrets |
 
 ## Client Secret
 
@@ -99,6 +105,37 @@ CLI flags  >  Environment variables  >  appsettings.json
 ```
 
 Setting `--client-secret` automatically switches to `ClientSecret` method. Setting `--cert-path` or `--cert-thumbprint` automatically switches to `Certificate` method.
+
+---
+
+## Device Code Flow
+
+For environments where client secrets or certificates are not available — or when you need delegated (user) permissions — Device Code Flow provides interactive browser-based sign-in.
+
+### appsettings.json
+
+```json
+{
+  "Authentication": {
+    "TenantId": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
+    "ClientId": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
+    "Method": "DeviceCode"
+  }
+}
+```
+
+### Environment Variables
+
+```bash
+export INTUNEMONITOR_Authentication__Method="DeviceCode"
+```
+
+When the app starts, it will display a device code and URL. Open the URL in a browser, enter the code, and sign in with your Entra ID account.
+
+> [!NOTE]
+> Device Code Flow requires the app registration to have **"Allow public client flows"** enabled under **Authentication** in the Azure Portal.
+
+---
 
 ## Creating an Entra App Registration
 
