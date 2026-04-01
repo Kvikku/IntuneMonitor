@@ -17,6 +17,9 @@ public class IntuneImporter
     private readonly GraphClientFactory _graphClientFactory;
     private readonly ILogger<IntuneImporter> _logger;
 
+    /// <summary>Internal hook for tests to provide a custom HttpClient factory.</summary>
+    internal Func<CancellationToken, Task<HttpClient>>? HttpClientFactory { get; set; }
+
     public IntuneImporter(
         TokenCredential credential,
         GraphClientFactory graphClientFactory,
@@ -25,6 +28,15 @@ public class IntuneImporter
         _credential = credential ?? throw new ArgumentNullException(nameof(credential));
         _graphClientFactory = graphClientFactory ?? throw new ArgumentNullException(nameof(graphClientFactory));
         _logger = (loggerFactory ?? NullLoggerFactory.Instance).CreateLogger<IntuneImporter>();
+    }
+
+    private async Task<HttpClient> CreateHttpClientAsync(CancellationToken cancellationToken)
+    {
+        if (HttpClientFactory != null)
+            return await HttpClientFactory(cancellationToken);
+
+        var token = await GraphClientFactory.GetAccessTokenAsync(_credential, cancellationToken);
+        return _graphClientFactory.CreateHttpClient(token);
     }
 
     /// <summary>
@@ -47,9 +59,8 @@ public class IntuneImporter
         var payload = PrepareImportPayload(item.PolicyData.Value);
 
         var url = $"https://graph.microsoft.com/beta/{endpoint}";
-        var token = await GraphClientFactory.GetAccessTokenAsync(_credential, cancellationToken);
 
-        using var httpClient = _graphClientFactory.CreateHttpClient(token);
+        using var httpClient = await CreateHttpClientAsync(cancellationToken);
 
         using var content = new StringContent(
             JsonSerializer.Serialize(payload),

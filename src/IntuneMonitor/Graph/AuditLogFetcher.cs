@@ -1,3 +1,4 @@
+using System.Net;
 using System.Text.Json;
 using Azure.Core;
 using IntuneMonitor.Models;
@@ -22,11 +23,40 @@ public class AuditLogFetcher
     /// <summary>Small delay between page requests to reduce throttling risk.</summary>
     private static readonly TimeSpan PageRequestDelay = TimeSpan.FromMilliseconds(500);
 
+    /// <summary>Maximum number of retry attempts for transient failures.</summary>
+    private const int MaxAttempts = 5;
+
+    /// <summary>Default delay in seconds when no Retry-After header is present on a 429 response.</summary>
+    private const int DefaultRetryDelaySeconds = 30;
+
+    /// <summary>Base delay in seconds for exponential backoff on server errors.</summary>
+    private const int BaseBackoffSeconds = 5;
+
     public AuditLogFetcher(TokenCredential credential, GraphClientFactory graphClientFactory, ILoggerFactory? loggerFactory = null)
     {
         _credential = credential ?? throw new ArgumentNullException(nameof(credential));
         _graphClientFactory = graphClientFactory ?? throw new ArgumentNullException(nameof(graphClientFactory));
         _logger = (loggerFactory ?? NullLoggerFactory.Instance).CreateLogger<AuditLogFetcher>();
+    }
+
+    /// <summary>Internal hook for tests to provide a custom HttpClient factory.</summary>
+    internal Func<CancellationToken, Task<HttpClient>>? HttpClientFactory { get; set; }
+
+    /// <summary>Internal hook for tests to replace Task.Delay with a no-op or fast implementation.</summary>
+    internal Func<TimeSpan, CancellationToken, Task>? DelayFunc { get; set; }
+
+    private Task DelayAsync(TimeSpan delay, CancellationToken cancellationToken) =>
+        DelayFunc != null
+            ? DelayFunc(delay, cancellationToken)
+            : Task.Delay(delay, cancellationToken);
+
+    private async Task<HttpClient> CreateHttpClientAsync(CancellationToken cancellationToken)
+    {
+        if (HttpClientFactory != null)
+            return await HttpClientFactory(cancellationToken);
+
+        var token = await GraphClientFactory.GetAccessTokenAsync(_credential, cancellationToken);
+        return _graphClientFactory.CreateHttpClient(token);
     }
 
     /// <summary>
@@ -42,8 +72,7 @@ public class AuditLogFetcher
         if (days < 1 || days > 30)
             throw new ArgumentOutOfRangeException(nameof(days), days, "Days must be between 1 and 30.");
 
-        var token = await GraphClientFactory.GetAccessTokenAsync(_credential, cancellationToken);
-        using var httpClient = _graphClientFactory.CreateHttpClient(token);
+        using var httpClient = await CreateHttpClientAsync(cancellationToken);
 
         var since = DateTime.UtcNow.AddDays(-days).ToString("yyyy-MM-ddTHH:mm:ssZ");
         var filter = Uri.EscapeDataString($"activityDateTime ge {since}");
@@ -63,7 +92,7 @@ public class AuditLogFetcher
 
             _logger.LogDebug("Fetching audit log page {PageNumber}...", pageCount);
 
-            var json = await GraphRetryHandler.SendWithRetryAsync(httpClient, url, _logger, cancellationToken);
+            var json = await SendWithRetryAsync(httpClient, url, cancellationToken);
             if (json == null)
                 break;
 
@@ -88,11 +117,70 @@ public class AuditLogFetcher
 
             // Pace requests to reduce throttling risk
             if (url != null)
-                await Task.Delay(PageRequestDelay, cancellationToken);
+                await DelayAsync(PageRequestDelay, cancellationToken);
         }
 
         _logger.LogInformation("Fetched {TotalEvents} audit event(s) across {PageCount} page(s)", events.Count, pageCount);
         return events;
+    }
+
+    /// <summary>
+    /// Sends a GET request with retry logic for HTTP 429 and transient 5xx errors.
+    /// </summary>
+    private async Task<string?> SendWithRetryAsync(
+        HttpClient httpClient,
+        string url,
+        CancellationToken cancellationToken)
+    {
+        for (int attempt = 0; attempt < MaxAttempts; attempt++)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            HttpResponseMessage response;
+            try
+            {
+                response = await httpClient.GetAsync(url, cancellationToken);
+            }
+            catch (HttpRequestException ex) when (attempt < MaxAttempts - 1)
+            {
+                _logger.LogWarning(ex, "HTTP request failed (attempt {Attempt}/{MaxAttempts}), retrying...", attempt + 1, MaxAttempts);
+                await DelayAsync(TimeSpan.FromSeconds(DefaultRetryDelaySeconds), cancellationToken);
+                continue;
+            }
+
+            using (response)
+            {
+                if (response.IsSuccessStatusCode)
+                    return await response.Content.ReadAsStringAsync(cancellationToken);
+
+                if (response.StatusCode == HttpStatusCode.TooManyRequests && attempt < MaxAttempts - 1)
+                {
+                    var retryAfter = GetRetryAfterSeconds(response);
+                    _logger.LogWarning("Throttled (HTTP 429). Waiting {RetryAfterSeconds}s before retry (attempt {Attempt}/{MaxAttempts})",
+                        retryAfter, attempt + 1, MaxAttempts);
+                    await DelayAsync(TimeSpan.FromSeconds(retryAfter), cancellationToken);
+                    continue;
+                }
+
+                if ((int)response.StatusCode >= 500 && attempt < MaxAttempts - 1)
+                {
+                    var delay = (int)Math.Pow(2, attempt) * BaseBackoffSeconds;
+                    _logger.LogWarning("Server error (HTTP {StatusCode}). Retrying in {Delay}s (attempt {Attempt}/{MaxAttempts})",
+                        (int)response.StatusCode, delay, attempt + 1, MaxAttempts);
+                    await DelayAsync(TimeSpan.FromSeconds(delay), cancellationToken);
+                    continue;
+                }
+
+                // Non-retryable error
+                var errorBody = await response.Content.ReadAsStringAsync(cancellationToken);
+                _logger.LogError("Audit log request failed with HTTP {StatusCode}: {ErrorBody}",
+                    (int)response.StatusCode, errorBody);
+                return null;
+            }
+        }
+
+        _logger.LogError("Audit log request failed after {MaxAttempts} attempts", MaxAttempts);
+        return null;
     }
 
     /// <summary>
@@ -152,6 +240,20 @@ public class AuditLogFetcher
             });
         }
         return resources;
+    }
+
+    private static int GetRetryAfterSeconds(HttpResponseMessage response)
+    {
+        if (response.Headers.RetryAfter?.Delta is { } delta)
+            return Math.Max(1, (int)delta.TotalSeconds);
+
+        if (response.Headers.RetryAfter?.Date is { } date)
+        {
+            var wait = (int)(date - DateTimeOffset.UtcNow).TotalSeconds;
+            return Math.Max(1, wait);
+        }
+
+        return DefaultRetryDelaySeconds;
     }
 
 }
