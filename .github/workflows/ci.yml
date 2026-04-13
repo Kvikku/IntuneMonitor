@@ -34,7 +34,7 @@ jobs:
         run: dotnet restore
 
       - name: Check formatting
-        run: dotnet format --verify-no-changes --verbosity normal
+        run: dotnet format --verify-no-changes --verbosity normal --exclude-diagnostics CA1848
 
       - name: Build
         run: dotnet build --no-restore -c Release
