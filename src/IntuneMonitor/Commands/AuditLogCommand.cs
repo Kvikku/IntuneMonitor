@@ -40,6 +40,7 @@ public class AuditLogCommand
         int days,
         string? htmlReportPath = null,
         string? jsonReportPath = null,
+        string? mdReportPath = null,
         CancellationToken cancellationToken = default)
     {
         _logger.LogInformation("=== Intune Audit Log Review ===");
@@ -60,7 +61,7 @@ public class AuditLogCommand
 
         // Fetch audit events
         var graphFactory = new GraphClientFactory(_httpClientFactory);
-        var fetcher = new AuditLogFetcher(credential, graphFactory, _loggerFactory);
+        var fetcher = new AuditLogFetcher(credential, graphFactory, _loggerFactory, _config.GraphRetry);
         List<AuditEvent> events;
         try
         {
@@ -85,8 +86,10 @@ public class AuditLogCommand
         var reportTimestamp = DateTime.UtcNow.ToString("yyyy-MM-dd_HHmmss");
         var timestampedJsonPath = string.IsNullOrWhiteSpace(jsonReportPath) ? jsonReportPath : Reporting.ReportPath.WithTimestamp(jsonReportPath, reportTimestamp);
         var timestampedHtmlPath = string.IsNullOrWhiteSpace(htmlReportPath) ? htmlReportPath : Reporting.ReportPath.WithTimestamp(htmlReportPath, reportTimestamp);
+        var timestampedMdPath = string.IsNullOrWhiteSpace(mdReportPath) ? mdReportPath : Reporting.ReportPath.WithTimestamp(mdReportPath, reportTimestamp);
         await WriteJsonReportAsync(report, timestampedJsonPath, cancellationToken);
         await WriteHtmlReportAsync(report, timestampedHtmlPath, cancellationToken);
+        await WriteMdReportAsync(report, timestampedMdPath, cancellationToken);
 
         return report;
     }
@@ -198,6 +201,22 @@ public class AuditLogCommand
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to write HTML report to '{OutputPath}'", outputPath);
+        }
+    }
+
+    private async Task WriteMdReportAsync(AuditLogReport report, string? outputPath, CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(outputPath))
+            return;
+
+        try
+        {
+            await MarkdownAuditReportGenerator.WriteAsync(report, outputPath, cancellationToken);
+            _logger.LogInformation("Markdown report written to: {OutputPath}", outputPath);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to write Markdown report to '{OutputPath}'", outputPath);
         }
     }
 

@@ -23,6 +23,9 @@ public class AppConfiguration
     /// <summary>Notification settings for drift alerts.</summary>
     public NotificationConfig Notifications { get; set; } = new();
 
+    /// <summary>Graph API retry and throttling settings.</summary>
+    public GraphRetryConfig GraphRetry { get; set; } = new();
+
     /// <summary>Named tenant profiles for multi-tenant operations.</summary>
     public Dictionary<string, TenantProfile> TenantProfiles { get; set; } = new(StringComparer.OrdinalIgnoreCase);
 }
@@ -168,6 +171,12 @@ public class MonitorConfig
     public string? HtmlReportOutputPath { get; set; }
 
     /// <summary>
+    /// Path to write a Markdown report (viewable inline in GitLab).
+    /// Leave empty to skip Markdown output.
+    /// </summary>
+    public string? MdReportOutputPath { get; set; }
+
+    /// <summary>
     /// When true, automatically opens the HTML report in the default browser after generation.
     /// </summary>
     public bool OpenHtmlReport { get; set; } = true;
@@ -252,4 +261,19 @@ public class TenantProfile
 
     /// <summary>Optional backup settings override for this tenant.</summary>
     public BackupConfig? Backup { get; set; }
+}
+
+/// <summary>
+/// Configuration for Graph API retry and throttling behavior.
+/// </summary>
+public class GraphRetryConfig
+{
+    /// <summary>Maximum number of retry attempts for transient failures (default 5).</summary>
+    public int MaxAttempts { get; set; } = 5;
+
+    /// <summary>Default delay in seconds when no Retry-After header is present on a 429 response (default 30).</summary>
+    public int DefaultRetryDelaySeconds { get; set; } = 30;
+
+    /// <summary>Base delay in seconds for exponential backoff on server errors (default 5).</summary>
+    public int BaseBackoffSeconds { get; set; } = 5;
 }

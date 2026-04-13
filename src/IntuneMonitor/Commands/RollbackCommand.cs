@@ -85,7 +85,7 @@ public class RollbackCommand
 
         // Fetch current state from Graph
         var graphFactory = new GraphClientFactory(_httpClientFactory);
-        var exporter = new IntuneExporter(credential, graphFactory);
+        var exporter = new IntuneExporter(credential, graphFactory, loggerFactory: null, retryConfig: _config.GraphRetry);
         var progress = new Progress<string>(msg => _logger.LogDebug("{ProgressMessage}", msg));
 
         Dictionary<string, List<IntuneItem>> liveData;
@@ -139,7 +139,7 @@ public class RollbackCommand
         _logger.LogInformation("Found {DriftCount} drifted policies to roll back", rollbackItems.Count);
 
         // Perform rollback
-        var importer = new IntuneImporter(credential, graphFactory, _loggerFactory);
+        var importer = new IntuneImporter(credential, graphFactory, _loggerFactory, _config.GraphRetry);
         int successCount = 0;
         int errorCount = 0;
 

@@ -13,6 +13,12 @@ public class GraphClientFactory
     /// <summary>Named client identifier used with <see cref="IHttpClientFactory"/>.</summary>
     public const string HttpClientName = "Graph";
 
+    /// <summary>Base URL for Microsoft Graph beta API.</summary>
+    public const string GraphBetaBaseUrl = "https://graph.microsoft.com/beta";
+
+    /// <summary>Base URL for Microsoft Graph v1.0 API.</summary>
+    public const string GraphV1BaseUrl = "https://graph.microsoft.com/v1.0";
+
     private static readonly string[] Scopes = { "https://graph.microsoft.com/.default" };
     private readonly IHttpClientFactory _httpClientFactory;
 

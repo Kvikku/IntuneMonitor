@@ -146,11 +146,15 @@ Config POCOs live in `Config/AppConfiguration.cs`. Never commit `appsettings.jso
 
 ### Graph API
 
-All Graph calls go through `HttpClient` to the **beta** endpoint (`https://graph.microsoft.com/beta/...`). Endpoints and content-type mappings are centralized in `IntuneContentTypes`.
+All Graph calls go through `HttpClient` to the **beta** endpoint. Base URLs are centralized as constants in `GraphClientFactory`:
+- `GraphClientFactory.GraphBetaBaseUrl` — `https://graph.microsoft.com/beta`
+- `GraphClientFactory.GraphV1BaseUrl` — `https://graph.microsoft.com/v1.0`
+
+Endpoints and content-type mappings are centralized in `IntuneContentTypes`. Retry logic (throttling, exponential backoff) is handled by `GraphRetryHandler` and is configurable via `GraphRetryConfig` in `AppConfiguration`.
 
 ## CLI Commands
 
-Built with `System.CommandLine 2.0.0-beta4.22272.1`. Five commands:
+Built with `System.CommandLine 2.0.0-beta4.22272.1`. Commands:
 
 | Command | Purpose |
 |---|---|
@@ -158,7 +162,11 @@ Built with `System.CommandLine 2.0.0-beta4.22272.1`. Five commands:
 | `import` | Restore policies from backup (supports `--dry-run`) |
 | `monitor` | Compare live state vs. backup, detect drift, generate reports |
 | `audit-log` | Fetch and summarize Intune audit log events (1–30 days) |
-| `list-types` | Display the 13 supported Intune content types |
+| `diff` | Compare two backup snapshots offline |
+| `rollback` | Restore a specific policy to a previous backup version |
+| `validate` | Validate backup files for integrity and consistency |
+| `dependency` | Analyze policy dependencies and references |
+| `list-types` | Display the 20 supported Intune content types |
 
 Global options (tenant, client, auth, backup path, verbosity) are defined in `Program.cs` and shared across commands.
 
@@ -182,6 +190,10 @@ Global options (tenant, client, auth, backup path, verbosity) are defined in `Pr
 No Microsoft Graph SDK — raw `HttpClient` calls to the Graph beta API.
 
 When adding new packages, prefer packages from the `Microsoft.Extensions.*` or `Azure.*` namespaces to stay consistent with the existing stack.
+
+## Code Analysis
+
+.NET analyzers are enabled project-wide with `<EnableNETAnalyzers>true</EnableNETAnalyzers>` and `<AnalysisLevel>latest-recommended</AnalysisLevel>`. The test project suppresses `CA1707` (underscore naming is standard xUnit convention). Ensure new code passes with zero warnings.
 
 ## Documentation Layout
 

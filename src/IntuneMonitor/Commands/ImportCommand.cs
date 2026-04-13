@@ -76,7 +76,7 @@ public class ImportCommand
         }
 
         var graphFactory = new GraphClientFactory(_httpClientFactory);
-        var importer = new IntuneImporter(credential, graphFactory, _loggerFactory);
+        var importer = new IntuneImporter(credential, graphFactory, _loggerFactory, _config.GraphRetry);
         int successCount = 0;
         int errorCount = 0;
         var errors = new List<ImportResult>();

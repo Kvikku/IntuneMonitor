@@ -4,6 +4,7 @@ using System.Text.Json;
 using Azure.Core;
 using Azure.Identity;
 using IntuneMonitor.Config;
+using IntuneMonitor.Graph;
 using IntuneMonitor.Models;
 using Microsoft.Extensions.Logging;
 
@@ -15,17 +16,6 @@ namespace IntuneMonitor.Storage;
 /// </summary>
 public class AzureBlobStorage : IBackupStorage
 {
-    private static readonly JsonSerializerOptions WriteOptions = new()
-    {
-        WriteIndented = true,
-        PropertyNamingPolicy = JsonNamingPolicy.CamelCase
-    };
-
-    private static readonly JsonSerializerOptions ReadOptions = new()
-    {
-        PropertyNameCaseInsensitive = true
-    };
-
     private readonly BackupConfig _config;
     private readonly ILogger<AzureBlobStorage> _logger;
     private readonly string _storageAccountUrl;
@@ -83,7 +73,7 @@ public class AzureBlobStorage : IBackupStorage
 
         blobPath = SanitizeBlobPath(blobPath);
 
-        var json = JsonSerializer.Serialize(document, WriteOptions);
+        var json = JsonSerializer.Serialize(document, JsonDefaults.IndentedCamelCase);
 
         using var httpClient = await CreateHttpClientAsync(cancellationToken);
         var url = $"{_storageAccountUrl}/{_containerName}/{blobPath}{_sasToken ?? ""}";
@@ -134,7 +124,7 @@ public class AzureBlobStorage : IBackupStorage
 
             response.EnsureSuccessStatusCode();
             var json = await response.Content.ReadAsStringAsync(cancellationToken);
-            return JsonSerializer.Deserialize<BackupDocument>(json, ReadOptions);
+            return JsonSerializer.Deserialize<BackupDocument>(json, JsonDefaults.CaseInsensitiveRead);
         }
         catch (HttpRequestException ex) when (ex.StatusCode == System.Net.HttpStatusCode.NotFound)
         {

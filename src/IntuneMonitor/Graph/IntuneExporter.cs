@@ -1,5 +1,6 @@
 using System.Text.Json;
 using Azure.Core;
+using IntuneMonitor.Config;
 using IntuneMonitor.Models;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -14,6 +15,7 @@ public class IntuneExporter
     private readonly TokenCredential _credential;
     private readonly GraphClientFactory _graphClientFactory;
     private readonly ILogger<IntuneExporter> _logger;
+    private readonly GraphRetryConfig? _retryConfig;
 
     /// <summary>Cache of group ID → display name to avoid redundant Graph lookups.</summary>
     private readonly Dictionary<string, string> _groupNameCache = new(StringComparer.OrdinalIgnoreCase);
@@ -45,11 +47,12 @@ public class IntuneExporter
     /// <summary>Internal hook for tests to provide a custom HttpClient factory.</summary>
     internal Func<CancellationToken, Task<HttpClient>>? HttpClientFactory { get; set; }
 
-    public IntuneExporter(TokenCredential credential, GraphClientFactory graphClientFactory, ILoggerFactory? loggerFactory = null)
+    public IntuneExporter(TokenCredential credential, GraphClientFactory graphClientFactory, ILoggerFactory? loggerFactory = null, GraphRetryConfig? retryConfig = null)
     {
         _credential = credential ?? throw new ArgumentNullException(nameof(credential));
         _graphClientFactory = graphClientFactory ?? throw new ArgumentNullException(nameof(graphClientFactory));
         _logger = (loggerFactory ?? NullLoggerFactory.Instance).CreateLogger<IntuneExporter>();
+        _retryConfig = retryConfig;
     }
 
     private async Task<HttpClient> CreateHttpClientAsync(CancellationToken cancellationToken)
@@ -79,14 +82,14 @@ public class IntuneExporter
         using var httpClient = await CreateHttpClientAsync(cancellationToken);
 
         var items = new List<IntuneItem>();
-        var url = $"https://graph.microsoft.com/beta/{endpoint}";
+        var url = $"{GraphClientFactory.GraphBetaBaseUrl}/{endpoint}";
 
         // Fetch list pages
         while (url != null)
         {
             cancellationToken.ThrowIfCancellationRequested();
 
-            var json = await GraphRetryHandler.SendWithRetryAsync(httpClient, url, _logger, cancellationToken);
+            var json = await GraphRetryHandler.SendWithRetryAsync(httpClient, url, _logger, cancellationToken, retryConfig: _retryConfig);
             if (json == null)
                 break;
             var root = JsonSerializer.Deserialize<JsonElement>(json);
@@ -200,8 +203,8 @@ public class IntuneExporter
     {
         try
         {
-            var url = $"https://graph.microsoft.com/beta/{endpoint}/{itemId}";
-            var json = await GraphRetryHandler.SendWithRetryAsync(httpClient, url, _logger, cancellationToken);
+            var url = $"{GraphClientFactory.GraphBetaBaseUrl}/{endpoint}/{itemId}";
+            var json = await GraphRetryHandler.SendWithRetryAsync(httpClient, url, _logger, cancellationToken, retryConfig: _retryConfig);
             if (json == null) return null;
             return JsonSerializer.Deserialize<JsonElement>(json);
         }
@@ -226,12 +229,12 @@ public class IntuneExporter
         try
         {
             var allSettings = new List<JsonElement>();
-            string? url = $"https://graph.microsoft.com/beta/{endpoint}/{itemId}/settings";
+            string? url = $"{GraphClientFactory.GraphBetaBaseUrl}/{endpoint}/{itemId}/settings";
 
             while (url != null)
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                var json = await GraphRetryHandler.SendWithRetryAsync(httpClient, url, _logger, cancellationToken);
+                var json = await GraphRetryHandler.SendWithRetryAsync(httpClient, url, _logger, cancellationToken, retryConfig: _retryConfig);
                 if (json == null)
                 {
                     _logger.LogWarning("Received null response when fetching settings for {Endpoint}/{ItemId}. Returning policy detail unchanged.", endpoint, itemId);
@@ -289,12 +292,12 @@ public class IntuneExporter
         try
         {
             var allAssignments = new List<JsonElement>();
-            string? url = $"https://graph.microsoft.com/beta/{endpoint}/{itemId}/assignments";
+            string? url = $"{GraphClientFactory.GraphBetaBaseUrl}/{endpoint}/{itemId}/assignments";
 
             while (url != null)
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                var json = await GraphRetryHandler.SendWithRetryAsync(httpClient, url, _logger, cancellationToken);
+                var json = await GraphRetryHandler.SendWithRetryAsync(httpClient, url, _logger, cancellationToken, retryConfig: _retryConfig);
                 if (json == null) break;
                 var root = JsonSerializer.Deserialize<JsonElement>(json);
 
@@ -374,7 +377,7 @@ public class IntuneExporter
 
         try
         {
-            var url = $"https://graph.microsoft.com/v1.0/groups/{groupId}?$select=displayName";
+            var url = $"{GraphClientFactory.GraphV1BaseUrl}/groups/{groupId}?$select=displayName";
             var json = await GraphRetryHandler.SendWithRetryAsync(httpClient, url, _logger, cancellationToken, maxAttempts: 2);
 
             if (json != null)

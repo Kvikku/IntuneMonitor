@@ -20,6 +20,7 @@ The definitive style guide lives in [`.github/copilot-instructions.md`](../.gith
 - **Nullable**: Enabled project-wide — respect nullable annotations
 - **Logging**: Structured `ILogger` templates with named placeholders, not string interpolation
 - **UI**: Use `ConsoleUI` helpers for terminal output, `ILogger` for structured logs — both together
+- **Analyzers**: .NET analyzers are enabled (`EnableNETAnalyzers=true`, `AnalysisLevel=latest-recommended`). Code must build with zero warnings. Test project suppresses `CA1707` for underscore naming convention.
 
 ## Project Structure
 
