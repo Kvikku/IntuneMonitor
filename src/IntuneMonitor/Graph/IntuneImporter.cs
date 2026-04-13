@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Http.Headers;
 using System.Text.Json;
 using Azure.Core;
+using IntuneMonitor.Config;
 using IntuneMonitor.Models;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -16,6 +17,7 @@ public class IntuneImporter
     private readonly TokenCredential _credential;
     private readonly GraphClientFactory _graphClientFactory;
     private readonly ILogger<IntuneImporter> _logger;
+    private readonly GraphRetryConfig? _retryConfig;
 
     /// <summary>Internal hook for tests to provide a custom HttpClient factory.</summary>
     internal Func<CancellationToken, Task<HttpClient>>? HttpClientFactory { get; set; }
@@ -23,11 +25,13 @@ public class IntuneImporter
     public IntuneImporter(
         TokenCredential credential,
         GraphClientFactory graphClientFactory,
-        ILoggerFactory? loggerFactory = null)
+        ILoggerFactory? loggerFactory = null,
+        GraphRetryConfig? retryConfig = null)
     {
         _credential = credential ?? throw new ArgumentNullException(nameof(credential));
         _graphClientFactory = graphClientFactory ?? throw new ArgumentNullException(nameof(graphClientFactory));
         _logger = (loggerFactory ?? NullLoggerFactory.Instance).CreateLogger<IntuneImporter>();
+        _retryConfig = retryConfig;
     }
 
     private async Task<HttpClient> CreateHttpClientAsync(CancellationToken cancellationToken)
@@ -70,7 +74,7 @@ public class IntuneImporter
         try
         {
             using var response = await GraphRetryHandler.PostWithRetryAsync(
-                httpClient, url, content, _logger, cancellationToken);
+                httpClient, url, content, _logger, cancellationToken, retryConfig: _retryConfig);
 
             if (response.IsSuccessStatusCode)
             {

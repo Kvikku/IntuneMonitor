@@ -61,7 +61,7 @@ public class AuditLogCommand
 
         // Fetch audit events
         var graphFactory = new GraphClientFactory(_httpClientFactory);
-        var fetcher = new AuditLogFetcher(credential, graphFactory, _loggerFactory);
+        var fetcher = new AuditLogFetcher(credential, graphFactory, _loggerFactory, _config.GraphRetry);
         List<AuditEvent> events;
         try
         {

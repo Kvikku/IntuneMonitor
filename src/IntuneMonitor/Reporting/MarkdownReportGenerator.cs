@@ -1,3 +1,4 @@
+using System.Net;
 using System.Text;
 using IntuneMonitor.Models;
 
@@ -72,7 +73,7 @@ public static class MarkdownReportGenerator
 
             foreach (var change in modified)
             {
-                sb.AppendLine($"<details><summary>📋 {EscapePipe(change.PolicyName)} – {change.FieldChanges.Count} field change(s)</summary>");
+                sb.AppendLine($"<details><summary>📋 {HtmlEncode(change.PolicyName)} – {change.FieldChanges.Count} field change(s)</summary>");
                 sb.AppendLine();
 
                 if (!string.IsNullOrEmpty(change.Details))
@@ -109,6 +110,9 @@ public static class MarkdownReportGenerator
 
     private static string EscapePipe(string? value) =>
         (value ?? string.Empty).Replace("|", "\\|");
+
+    private static string HtmlEncode(string? value) =>
+        WebUtility.HtmlEncode(value ?? string.Empty);
 
     private static string Truncate(string? value, int maxLength) =>
         value == null ? "(null)" :

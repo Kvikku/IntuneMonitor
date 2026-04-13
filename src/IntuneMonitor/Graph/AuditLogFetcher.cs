@@ -1,5 +1,6 @@
 using System.Text.Json;
 using Azure.Core;
+using IntuneMonitor.Config;
 using IntuneMonitor.Models;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -15,6 +16,7 @@ public class AuditLogFetcher
     private readonly TokenCredential _credential;
     private readonly GraphClientFactory _graphClientFactory;
     private readonly ILogger<AuditLogFetcher> _logger;
+    private readonly GraphRetryConfig? _retryConfig;
 
     /// <summary>Maximum number of events per page to request from Graph.</summary>
     private const int PageSize = 100;
@@ -22,11 +24,12 @@ public class AuditLogFetcher
     /// <summary>Small delay between page requests to reduce throttling risk.</summary>
     private static readonly TimeSpan PageRequestDelay = TimeSpan.FromMilliseconds(500);
 
-    public AuditLogFetcher(TokenCredential credential, GraphClientFactory graphClientFactory, ILoggerFactory? loggerFactory = null)
+    public AuditLogFetcher(TokenCredential credential, GraphClientFactory graphClientFactory, ILoggerFactory? loggerFactory = null, GraphRetryConfig? retryConfig = null)
     {
         _credential = credential ?? throw new ArgumentNullException(nameof(credential));
         _graphClientFactory = graphClientFactory ?? throw new ArgumentNullException(nameof(graphClientFactory));
         _logger = (loggerFactory ?? NullLoggerFactory.Instance).CreateLogger<AuditLogFetcher>();
+        _retryConfig = retryConfig;
     }
 
     /// <summary>Internal hook for tests to provide a custom HttpClient factory.</summary>
@@ -82,7 +85,7 @@ public class AuditLogFetcher
 
             _logger.LogDebug("Fetching audit log page {PageNumber}...", pageCount);
 
-            var json = await GraphRetryHandler.SendWithRetryAsync(httpClient, url, _logger, cancellationToken, delayFunc: DelayFunc);
+            var json = await GraphRetryHandler.SendWithRetryAsync(httpClient, url, _logger, cancellationToken, delayFunc: DelayFunc, retryConfig: _retryConfig);
             if (json == null)
                 break;
 

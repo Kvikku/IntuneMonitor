@@ -74,7 +74,7 @@ public class MonitorCommand
 
         // Fetch current state from Graph
         var graphFactory = new GraphClientFactory(_httpClientFactory);
-        var exporter = new IntuneExporter(credential, graphFactory, _loggerFactory);
+        var exporter = new IntuneExporter(credential, graphFactory, _loggerFactory, _config.GraphRetry);
         var progress = new Progress<string>(msg => _logger.LogDebug("{ProgressMessage}", msg));
 
         Dictionary<string, List<IntuneItem>> liveData;
