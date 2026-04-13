@@ -58,7 +58,7 @@ public class IntuneImporter
         // Prepare the payload: remove read-only fields before posting
         var payload = PrepareImportPayload(item.PolicyData.Value);
 
-        var url = $"https://graph.microsoft.com/beta/{endpoint}";
+        var url = $"{GraphClientFactory.GraphBetaBaseUrl}/{endpoint}";
 
         using var httpClient = await CreateHttpClientAsync(cancellationToken);
 

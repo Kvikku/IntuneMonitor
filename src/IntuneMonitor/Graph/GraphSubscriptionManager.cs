@@ -73,7 +73,7 @@ public class GraphSubscriptionManager
             using var httpClient = await CreateHttpClientAsync(cancellationToken);
             var content = new StringContent(json, Encoding.UTF8, "application/json");
             var response = await httpClient.PostAsync(
-                "https://graph.microsoft.com/v1.0/subscriptions",
+                $"{GraphClientFactory.GraphV1BaseUrl}/subscriptions",
                 content,
                 cancellationToken);
 
@@ -109,7 +109,7 @@ public class GraphSubscriptionManager
         {
             using var httpClient = await CreateHttpClientAsync(cancellationToken);
             var response = await httpClient.GetAsync(
-                "https://graph.microsoft.com/v1.0/subscriptions",
+                $"{GraphClientFactory.GraphV1BaseUrl}/subscriptions",
                 cancellationToken);
 
             if (!response.IsSuccessStatusCode)
@@ -155,7 +155,7 @@ public class GraphSubscriptionManager
         {
             using var httpClient = await CreateHttpClientAsync(cancellationToken);
             var response = await httpClient.DeleteAsync(
-                $"https://graph.microsoft.com/v1.0/subscriptions/{subscriptionId}",
+                $"{GraphClientFactory.GraphV1BaseUrl}/subscriptions/{subscriptionId}",
                 cancellationToken);
 
             if (response.IsSuccessStatusCode)
@@ -194,7 +194,7 @@ public class GraphSubscriptionManager
             var content = new StringContent(
                 JsonSerializer.Serialize(payload), Encoding.UTF8, "application/json");
             var request = new HttpRequestMessage(HttpMethod.Patch,
-                $"https://graph.microsoft.com/v1.0/subscriptions/{subscriptionId}")
+                $"{GraphClientFactory.GraphV1BaseUrl}/subscriptions/{subscriptionId}")
             {
                 Content = content
             };

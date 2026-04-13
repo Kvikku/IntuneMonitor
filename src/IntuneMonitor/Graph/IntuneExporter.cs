@@ -79,7 +79,7 @@ public class IntuneExporter
         using var httpClient = await CreateHttpClientAsync(cancellationToken);
 
         var items = new List<IntuneItem>();
-        var url = $"https://graph.microsoft.com/beta/{endpoint}";
+        var url = $"{GraphClientFactory.GraphBetaBaseUrl}/{endpoint}";
 
         // Fetch list pages
         while (url != null)
@@ -200,7 +200,7 @@ public class IntuneExporter
     {
         try
         {
-            var url = $"https://graph.microsoft.com/beta/{endpoint}/{itemId}";
+            var url = $"{GraphClientFactory.GraphBetaBaseUrl}/{endpoint}/{itemId}";
             var json = await GraphRetryHandler.SendWithRetryAsync(httpClient, url, _logger, cancellationToken);
             if (json == null) return null;
             return JsonSerializer.Deserialize<JsonElement>(json);
@@ -226,7 +226,7 @@ public class IntuneExporter
         try
         {
             var allSettings = new List<JsonElement>();
-            string? url = $"https://graph.microsoft.com/beta/{endpoint}/{itemId}/settings";
+            string? url = $"{GraphClientFactory.GraphBetaBaseUrl}/{endpoint}/{itemId}/settings";
 
             while (url != null)
             {
@@ -289,7 +289,7 @@ public class IntuneExporter
         try
         {
             var allAssignments = new List<JsonElement>();
-            string? url = $"https://graph.microsoft.com/beta/{endpoint}/{itemId}/assignments";
+            string? url = $"{GraphClientFactory.GraphBetaBaseUrl}/{endpoint}/{itemId}/assignments";
 
             while (url != null)
             {
@@ -374,7 +374,7 @@ public class IntuneExporter
 
         try
         {
-            var url = $"https://graph.microsoft.com/v1.0/groups/{groupId}?$select=displayName";
+            var url = $"{GraphClientFactory.GraphV1BaseUrl}/groups/{groupId}?$select=displayName";
             var json = await GraphRetryHandler.SendWithRetryAsync(httpClient, url, _logger, cancellationToken, maxAttempts: 2);
 
             if (json != null)

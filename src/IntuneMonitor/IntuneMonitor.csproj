@@ -9,6 +9,8 @@
     <Nullable>enable</Nullable>
     <AllowUnsafeBlocks>false</AllowUnsafeBlocks>
     <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+    <EnableNETAnalyzers>true</EnableNETAnalyzers>
+    <AnalysisLevel>latest-recommended</AnalysisLevel>
 
     <!-- Versioning: set via CI using -p:Version=x.y.z, defaults to 1.0.0 for local builds -->
     <Version>1.0.0</Version>

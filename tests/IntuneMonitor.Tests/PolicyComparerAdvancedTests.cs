@@ -200,6 +200,50 @@ public class PolicyComparerAdvancedTests
         Assert.Empty(changes);
     }
 
+    [Fact]
+    public void Compare_ArrayReordered_NoFalsePositive()
+    {
+        var live = MakeItem("1", "Test",
+            """{"id":"1","displayName":"Test","tags":["b","a","c"]}""");
+        var backup = MakeItem("1", "Test",
+            """{"id":"1","displayName":"Test","tags":["a","b","c"]}""");
+
+        var changes = _comparer.Compare(IntuneContentTypes.SettingsCatalog,
+            new[] { live }, MakeBackup(backup));
+
+        Assert.Empty(changes);
+    }
+
+    [Fact]
+    public void Compare_ArrayOfObjectsReordered_NoFalsePositive()
+    {
+        var live = MakeItem("1", "Test",
+            """{"id":"1","displayName":"Test","rules":[{"name":"B","value":2},{"name":"A","value":1}]}""");
+        var backup = MakeItem("1", "Test",
+            """{"id":"1","displayName":"Test","rules":[{"name":"A","value":1},{"name":"B","value":2}]}""");
+
+        var changes = _comparer.Compare(IntuneContentTypes.SettingsCatalog,
+            new[] { live }, MakeBackup(backup));
+
+        Assert.Empty(changes);
+    }
+
+    [Fact]
+    public void Compare_ArrayReorderedWithRealChange_DetectsChange()
+    {
+        var live = MakeItem("1", "Test",
+            """{"id":"1","displayName":"Test","tags":["b","a","d"]}""");
+        var backup = MakeItem("1", "Test",
+            """{"id":"1","displayName":"Test","tags":["a","b","c"]}""");
+
+        var changes = _comparer.Compare(IntuneContentTypes.SettingsCatalog,
+            new[] { live }, MakeBackup(backup));
+
+        var modified = Assert.Single(changes);
+        var field = Assert.Single(modified.FieldChanges);
+        Assert.Equal("tags", field.FieldPath);
+    }
+
     // -----------------------------------------------------------------------
     // Assignment diffing
     // -----------------------------------------------------------------------

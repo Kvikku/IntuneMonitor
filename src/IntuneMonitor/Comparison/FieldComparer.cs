@@ -149,19 +149,34 @@ internal static class FieldComparer
             return;
         }
 
-        // Simple approach: compare the serialized form of the whole array
-        var liveJson = Serialize(live);
-        var backupJson = Serialize(backup);
+        // Order-insensitive comparison: normalize both arrays by sorting elements
+        // by their serialized form, so reordering alone doesn't produce false-positive diffs.
+        var liveNormalized = NormalizeArray(live);
+        var backupNormalized = NormalizeArray(backup);
 
-        if (!string.Equals(liveJson, backupJson, StringComparison.Ordinal))
+        if (!string.Equals(liveNormalized, backupNormalized, StringComparison.Ordinal))
         {
             changes.Add(new FieldChange
             {
                 FieldPath = path.TrimStart('.'),
-                OldValue = backupJson,
-                NewValue = liveJson
+                OldValue = Serialize(backup),
+                NewValue = Serialize(live)
             });
         }
+    }
+
+    /// <summary>
+    /// Normalizes an array for comparison by sorting its elements by their serialized form.
+    /// This ensures that two arrays with the same elements in different order compare as equal.
+    /// </summary>
+    private static string NormalizeArray(JsonElement array)
+    {
+        var elements = array.EnumerateArray()
+            .Select(e => JsonSerializer.Serialize(e, JsonDefaults.Compact))
+            .OrderBy(s => s, StringComparer.Ordinal)
+            .ToList();
+
+        return "[" + string.Join(",", elements) + "]";
     }
 
     private static string? Serialize(JsonElement? element)

@@ -173,3 +173,11 @@ dotnet test
 ```
 
 Tests cover the diff engine, Graph API clients (via mock `HttpMessageHandler`), commands, storage backends, notifications, configuration, and UI constants. Test helpers include `GraphTestHelpers` for creating fake `GraphClientFactory` instances and `MockHttpHandler` for stubbing HTTP responses.
+
+### Graph API URL Constants
+
+All Microsoft Graph API base URLs are centralized in `GraphClientFactory`:
+- `GraphBetaBaseUrl` — `https://graph.microsoft.com/beta`
+- `GraphV1BaseUrl` — `https://graph.microsoft.com/v1.0`
+
+All endpoint URLs in `IntuneExporter`, `IntuneImporter`, `AuditLogFetcher`, and `GraphSubscriptionManager` reference these constants rather than hardcoding URLs.

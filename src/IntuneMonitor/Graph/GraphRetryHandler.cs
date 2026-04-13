@@ -1,4 +1,5 @@
 using System.Net;
+using IntuneMonitor.Config;
 using Microsoft.Extensions.Logging;
 
 namespace IntuneMonitor.Graph;
@@ -11,13 +12,13 @@ namespace IntuneMonitor.Graph;
 internal static class GraphRetryHandler
 {
     /// <summary>Default delay in seconds when no Retry-After header is present on a 429 response.</summary>
-    private const int DefaultRetryDelaySeconds = 30;
+    internal const int DefaultRetryDelaySeconds = 30;
 
     /// <summary>Maximum number of attempts for transient/throttle failures per request.</summary>
-    private const int DefaultMaxAttempts = 5;
+    internal const int DefaultMaxAttempts = 5;
 
     /// <summary>Base delay in seconds for exponential backoff on server errors.</summary>
-    private const int BaseBackoffSeconds = 5;
+    internal const int DefaultBaseBackoffSeconds = 5;
 
     /// <summary>
     /// Sends a GET request with retry logic for HTTP 429 and transient 5xx errors.
@@ -28,14 +29,22 @@ internal static class GraphRetryHandler
     /// <param name="logger">Logger for diagnostics.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <param name="maxAttempts">Maximum number of attempts (default 5).</param>
+    /// <param name="delayFunc">Optional delay function for testing (defaults to Task.Delay).</param>
     /// <returns>Response body string, or null on failure.</returns>
     public static async Task<string?> SendWithRetryAsync(
         HttpClient httpClient,
         string url,
         ILogger logger,
         CancellationToken cancellationToken,
-        int maxAttempts = DefaultMaxAttempts)
+        int maxAttempts = DefaultMaxAttempts,
+        Func<TimeSpan, CancellationToken, Task>? delayFunc = null,
+        GraphRetryConfig? retryConfig = null)
     {
+        delayFunc ??= Task.Delay;
+        var retryDelay = retryConfig?.DefaultRetryDelaySeconds ?? DefaultRetryDelaySeconds;
+        var baseBackoff = retryConfig?.BaseBackoffSeconds ?? DefaultBaseBackoffSeconds;
+        if (retryConfig != null) maxAttempts = retryConfig.MaxAttempts;
+
         for (int attempt = 0; attempt < maxAttempts; attempt++)
         {
             cancellationToken.ThrowIfCancellationRequested();
@@ -49,7 +58,7 @@ internal static class GraphRetryHandler
             {
                 logger.LogWarning(ex, "HTTP request failed (attempt {Attempt}/{MaxAttempts}), retrying...",
                     attempt + 1, maxAttempts);
-                await Task.Delay(TimeSpan.FromSeconds(DefaultRetryDelaySeconds), cancellationToken);
+                await delayFunc(TimeSpan.FromSeconds(retryDelay), cancellationToken);
                 continue;
             }
 
@@ -60,19 +69,19 @@ internal static class GraphRetryHandler
 
                 if (response.StatusCode == HttpStatusCode.TooManyRequests && attempt < maxAttempts - 1)
                 {
-                    var retryAfter = GetRetryAfterSeconds(response);
+                    var retryAfter = GetRetryAfterSeconds(response, retryDelay);
                     logger.LogWarning("Throttled (HTTP 429). Waiting {RetryAfterSeconds}s before retry (attempt {Attempt}/{MaxAttempts})",
                         retryAfter, attempt + 1, maxAttempts);
-                    await Task.Delay(TimeSpan.FromSeconds(retryAfter), cancellationToken);
+                    await delayFunc(TimeSpan.FromSeconds(retryAfter), cancellationToken);
                     continue;
                 }
 
                 if ((int)response.StatusCode >= 500 && attempt < maxAttempts - 1)
                 {
-                    var delay = (int)Math.Pow(2, attempt) * BaseBackoffSeconds;
+                    var delay = (int)Math.Pow(2, attempt) * baseBackoff;
                     logger.LogWarning("Server error (HTTP {StatusCode}). Retrying in {Delay}s (attempt {Attempt}/{MaxAttempts})",
                         (int)response.StatusCode, delay, attempt + 1, maxAttempts);
-                    await Task.Delay(TimeSpan.FromSeconds(delay), cancellationToken);
+                    await delayFunc(TimeSpan.FromSeconds(delay), cancellationToken);
                     continue;
                 }
 
@@ -99,9 +108,10 @@ internal static class GraphRetryHandler
         HttpContent content,
         ILogger logger,
         CancellationToken cancellationToken,
-        int maxAttempts = DefaultMaxAttempts)
+        int maxAttempts = DefaultMaxAttempts,
+        GraphRetryConfig? retryConfig = null)
     {
-        return await SendRequestWithRetryAsync(httpClient, HttpMethod.Post, url, content, logger, cancellationToken, maxAttempts);
+        return await SendRequestWithRetryAsync(httpClient, HttpMethod.Post, url, content, logger, cancellationToken, maxAttempts, retryConfig);
     }
 
     /// <summary>
@@ -115,8 +125,13 @@ internal static class GraphRetryHandler
         HttpContent? content,
         ILogger logger,
         CancellationToken cancellationToken,
-        int maxAttempts = DefaultMaxAttempts)
+        int maxAttempts = DefaultMaxAttempts,
+        GraphRetryConfig? retryConfig = null)
     {
+        var retryDelay = retryConfig?.DefaultRetryDelaySeconds ?? DefaultRetryDelaySeconds;
+        var baseBackoff = retryConfig?.BaseBackoffSeconds ?? DefaultBaseBackoffSeconds;
+        if (retryConfig != null) maxAttempts = retryConfig.MaxAttempts;
+
         // Pre-read the content bytes once, outside the retry loop, for efficiency
         byte[]? contentBytes = null;
         System.Net.Http.Headers.MediaTypeHeaderValue? contentType = null;
@@ -147,7 +162,7 @@ internal static class GraphRetryHandler
             {
                 logger.LogWarning(ex, "HTTP {Method} request failed (attempt {Attempt}/{MaxAttempts}), retrying...",
                     method, attempt + 1, maxAttempts);
-                await Task.Delay(TimeSpan.FromSeconds(DefaultRetryDelaySeconds), cancellationToken);
+                await Task.Delay(TimeSpan.FromSeconds(retryDelay), cancellationToken);
                 continue;
             }
 
@@ -156,7 +171,7 @@ internal static class GraphRetryHandler
 
             if (response.StatusCode == HttpStatusCode.TooManyRequests && attempt < maxAttempts - 1)
             {
-                var retryAfter = GetRetryAfterSeconds(response);
+                var retryAfter = GetRetryAfterSeconds(response, retryDelay);
                 logger.LogWarning("Throttled (HTTP 429). Waiting {RetryAfterSeconds}s before retry (attempt {Attempt}/{MaxAttempts})",
                     retryAfter, attempt + 1, maxAttempts);
                 response.Dispose();
@@ -166,7 +181,7 @@ internal static class GraphRetryHandler
 
             if ((int)response.StatusCode >= 500 && attempt < maxAttempts - 1)
             {
-                var delay = (int)Math.Pow(2, attempt) * BaseBackoffSeconds;
+                var delay = (int)Math.Pow(2, attempt) * baseBackoff;
                 logger.LogWarning("Server error (HTTP {StatusCode}). Retrying in {Delay}s (attempt {Attempt}/{MaxAttempts})",
                     (int)response.StatusCode, delay, attempt + 1, maxAttempts);
                 response.Dispose();
@@ -182,7 +197,7 @@ internal static class GraphRetryHandler
         throw new HttpRequestException($"Request to {url} failed after {maxAttempts} attempts");
     }
 
-    private static int GetRetryAfterSeconds(HttpResponseMessage response)
+    private static int GetRetryAfterSeconds(HttpResponseMessage response, int defaultDelay = DefaultRetryDelaySeconds)
     {
         if (response.Headers.RetryAfter?.Delta is { } delta)
             return Math.Max(1, (int)delta.TotalSeconds);
@@ -193,6 +208,6 @@ internal static class GraphRetryHandler
             return Math.Max(1, wait);
         }
 
-        return DefaultRetryDelaySeconds;
+        return defaultDelay;
     }
 }

@@ -120,6 +120,7 @@ public class MonitorCommand
         var reportTimestamp = DateTime.UtcNow.ToString("yyyy-MM-dd_HHmmss");
         await WriteReportAsync(report, reportTimestamp, cancellationToken);
         await WriteHtmlReportAsync(report, reportTimestamp, cancellationToken);
+        await WriteMdReportAsync(report, reportTimestamp, cancellationToken);
 
         // Send notifications if configured
         await SendNotificationsAsync(report, cancellationToken);
@@ -264,6 +265,25 @@ public class MonitorCommand
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to write HTML report to '{OutputPath}'", outputPath);
+        }
+    }
+
+    private async Task WriteMdReportAsync(ChangeReport report, string timestamp, CancellationToken cancellationToken)
+    {
+        var outputPath = _config.Monitor.MdReportOutputPath;
+        if (string.IsNullOrWhiteSpace(outputPath))
+            return;
+
+        outputPath = Reporting.ReportPath.WithTimestamp(outputPath, timestamp);
+
+        try
+        {
+            await MarkdownReportGenerator.WriteAsync(report, outputPath, cancellationToken);
+            _logger.LogInformation("Markdown report written to: {OutputPath}", outputPath);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to write Markdown report to '{OutputPath}'", outputPath);
         }
     }
 

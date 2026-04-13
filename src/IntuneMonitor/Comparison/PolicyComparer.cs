@@ -11,6 +11,18 @@ namespace IntuneMonitor.Comparison;
 public class PolicyComparer
 {
     /// <summary>
+    /// Default enrollment configuration IDs suffixes that are system-managed
+    /// and should not be reported as drift.
+    /// </summary>
+    private static readonly string[] DefaultEnrollmentSuffixes =
+    {
+        "_DefaultLimit",
+        "_DefaultPlatformRestrictions",
+        "_DefaultWindowsHelloForBusiness",
+        "_DefaultWindows10EnrollmentCompletionPageConfiguration",
+    };
+
+    /// <summary>
     /// Compares the current (live) items against the backup for a single content type.
     /// </summary>
     /// <param name="contentType">The content type being compared.</param>
@@ -28,10 +40,12 @@ public class PolicyComparer
 
         var liveById = liveItems
             .Where(i => i.Id != null)
+            .Where(i => !IsDefaultEnrollmentConfig(contentType, i.Id!))
             .ToDictionary(i => i.Id!, StringComparer.OrdinalIgnoreCase);
 
         var backupById = backupItems
             .Where(i => i.Id != null)
+            .Where(i => !IsDefaultEnrollmentConfig(contentType, i.Id!))
             .ToDictionary(i => i.Id!, StringComparer.OrdinalIgnoreCase);
 
         // Added: in live but not in backup
@@ -62,4 +76,8 @@ public class PolicyComparer
 
         return changes;
     }
+
+    private static bool IsDefaultEnrollmentConfig(string contentType, string id) =>
+        contentType.Equals(IntuneContentTypes.EnrollmentRestriction, StringComparison.OrdinalIgnoreCase)
+        && DefaultEnrollmentSuffixes.Any(suffix => id.EndsWith(suffix, StringComparison.OrdinalIgnoreCase));
 }
