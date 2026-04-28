@@ -32,6 +32,7 @@ internal static partial class CommandBuilder
         RegisterRollbackCommand(rootCommand, options, appConfig, httpClientFactory);
         RegisterDependencyCommand(rootCommand, options, appConfig);
         RegisterValidateCommand(rootCommand, options, appConfig);
+        RegisterEntraMonitorCommand(rootCommand, options, appConfig, httpClientFactory);
 
         return (rootCommand, options);
     }

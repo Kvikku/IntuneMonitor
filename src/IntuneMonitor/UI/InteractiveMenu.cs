@@ -60,6 +60,9 @@ public class InteractiveMenu
                 case MenuConstants.ReviewAuditLogs:
                     await RunAuditLogAsync();
                     break;
+                case MenuConstants.EntraAppMonitor:
+                    await RunEntraMonitorAsync();
+                    break;
                 case MenuConstants.ListContentTypes:
                     ConsoleUI.WriteContentTypesTable();
                     break;
@@ -179,6 +182,70 @@ public class InteractiveMenu
         using var loggerFactory = _loggerFactoryCreator(LogLevel.Information);
         var cmd = new AuditLogCommand(_config, _httpClientFactory, loggerFactory);
         await cmd.RunAsync(days, htmlPath, jsonPath);
+    }
+
+    private async Task RunEntraMonitorAsync()
+    {
+        var days = AnsiConsole.Prompt(
+            new TextPrompt<int>("How many days of audit logs to include?")
+                .DefaultValue(_config.EntraMonitor.Days)
+                .Validate(v => v is >= 1 and <= 30
+                    ? ValidationResult.Success()
+                    : ValidationResult.Error("Must be between 1 and 30")));
+
+        var snapshotPath = AnsiConsole.Prompt(
+            new TextPrompt<string>("Snapshot storage path:")
+                .DefaultValue(_config.EntraMonitor.SnapshotPath)
+                .AllowEmpty());
+        if (string.IsNullOrWhiteSpace(snapshotPath))
+            snapshotPath = _config.EntraMonitor.SnapshotPath;
+
+        string? htmlPath = null;
+        if (AnsiConsole.Confirm("Generate HTML report?", true))
+        {
+            htmlPath = AnsiConsole.Prompt(
+                new TextPrompt<string>("  Report path:")
+                    .DefaultValue("reports/entra-monitor-report.html")
+                    .AllowEmpty());
+            if (string.IsNullOrWhiteSpace(htmlPath)) htmlPath = null;
+        }
+
+        string? mdPath = null;
+        if (AnsiConsole.Confirm("Generate Markdown report?", false))
+        {
+            mdPath = AnsiConsole.Prompt(
+                new TextPrompt<string>("  Report path:")
+                    .DefaultValue("reports/entra-monitor-report.md")
+                    .AllowEmpty());
+            if (string.IsNullOrWhiteSpace(mdPath)) mdPath = null;
+        }
+
+        string? jsonPath = null;
+        if (AnsiConsole.Confirm("Generate JSON report?", false))
+        {
+            jsonPath = AnsiConsole.Prompt(
+                new TextPrompt<string>("  Report path:")
+                    .DefaultValue("reports/entra-monitor-report.json")
+                    .AllowEmpty());
+            if (string.IsNullOrWhiteSpace(jsonPath)) jsonPath = null;
+        }
+
+        using var loggerFactory = _loggerFactoryCreator(LogLevel.Information);
+        var cmd = new EntraMonitorCommand(_config, _httpClientFactory, loggerFactory);
+        var report = await cmd.RunAsync(days, snapshotPath, htmlPath, jsonPath, mdPath);
+
+        // Show summary
+        var totalChanges = report.SnapshotChanges.Count;
+        var totalEvents = report.AuditReport.Events.Count;
+        if (totalChanges == 0 && totalEvents == 0)
+            ConsoleUI.Success("No changes or audit events detected.");
+        else
+        {
+            if (totalChanges > 0)
+                ConsoleUI.Warning($"{totalChanges} snapshot change(s) detected.");
+            if (totalEvents > 0)
+                ConsoleUI.Info($"{totalEvents} audit event(s) in the last {days} day(s).");
+        }
     }
 
     private async Task RunRollbackAsync()
@@ -324,6 +391,11 @@ public class InteractiveMenu
         monitorNode.AddNode($"Changes only:[yellow]{_config.Monitor.ChangesOnly}[/]");
         if (!string.IsNullOrEmpty(_config.Monitor.HtmlReportOutputPath))
             monitorNode.AddNode($"HTML report: [yellow]{SafeMarkup(_config.Monitor.HtmlReportOutputPath)}[/]");
+
+        // Entra Monitor
+        var entraNode = root.AddNode("[bold cyan]Entra Monitor[/]");
+        entraNode.AddNode($"Snapshots:   [yellow]{SafeMarkup(_config.EntraMonitor.SnapshotPath)}[/]");
+        entraNode.AddNode($"Audit days:  [yellow]{_config.EntraMonitor.Days}[/]");
 
         // Content types
         if (_config.ContentTypes.Count > 0)

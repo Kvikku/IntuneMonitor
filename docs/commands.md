@@ -1,6 +1,6 @@
 # Commands
 
-IntuneMonitor provides nine commands, each accessible via `dotnet run -- <command>` or through the [interactive menu](interactive-mode.md).
+IntuneMonitor provides ten commands, each accessible via `dotnet run -- <command>` or through the [interactive menu](interactive-mode.md).
 
 ## Global Options
 
@@ -105,7 +105,7 @@ See [Monitoring & Scheduling](monitoring.md) for details on drift detection logi
 
 ## `list-types`
 
-Displays all 20 supported content types in a formatted table.
+Displays all 21 supported content types in a formatted table.
 
 ```bash
 dotnet run -- list-types
@@ -216,6 +216,54 @@ dotnet run -- audit-log --days 7 --json-report ./audit-report.json
 
 ---
 
+## `entra-monitor`
+
+Monitors Entra app registrations and enterprise applications for changes. Combines snapshot comparison (drift detection) with directory audit log events into a single report.
+
+Tracks: owner additions/removals, permission changes (`requiredResourceAccess`, `appRoleAssignments`, `oauth2PermissionGrants`), app additions/removals, and 12 types of directory audit events.
+
+```bash
+# Run with defaults (1 day of audit logs, HTML report)
+dotnet run -- entra-monitor
+
+# Last 7 days, custom snapshot path, all report formats
+dotnet run -- entra-monitor --days 7 --snapshot-path ./entra-snapshots \
+  --html-report ./reports/entra.html --md-report ./reports/entra.md --json-report ./reports/entra.json
+```
+
+### Options
+
+| Option | Description |
+|---|---|
+| `--days <n>` | Number of days of audit logs to include (1–30, default: 1) |
+| `--snapshot-path <path>` | Directory for storing Entra snapshots (default: `entra-snapshots`) |
+| `--html-report <path>` | Write an HTML combined report |
+| `--md-report <path>` | Write a Markdown combined report |
+| `--json-report <path>` | Write a JSON combined report |
+
+### How It Works
+
+1. Authenticates and loads the previous snapshot (if any)
+2. Fetches current app registrations and enterprise applications from Graph (using `$expand` for efficiency)
+3. Saves a timestamped snapshot locally
+4. Compares current vs. previous snapshot to detect drift
+5. Fetches directory audit logs for the specified period
+6. Generates a combined report with both snapshot changes and audit events
+7. Sends notifications via Teams/Slack/Email if configured
+
+> **Note:** Entra snapshots are stored locally only — they are not synced to Git or Azure Blob Storage.
+> Snapshot retention is unlimited; old snapshots are never automatically deleted.
+
+### Required Graph Permissions
+
+| Permission | Type | Purpose |
+|---|---|---|
+| `Application.Read.All` | Application | Read app registrations and owners |
+| `Directory.Read.All` | Application | Read service principals, owners, permissions |
+| `AuditLog.Read.All` | Application | Read directory audit logs |
+
+---
+
 ## Supported Content Types
 
 | Content Type | Graph Endpoint | Backup Folder |
@@ -240,5 +288,6 @@ dotnet run -- audit-log --days 7 --json-report ./audit-report.json
 | EnrollmentRestriction | `deviceEnrollmentConfigurations` | `EnrollmentRestriction/` |
 | RoleDefinition | `roleDefinitions` | `RoleDefinition/` |
 | NamedLocation | `conditionalAccess/namedLocations` | `NamedLocation/` |
+| Application | `mobileApps` | `Application/` |
 
 > **Note:** LocalFile and Git storage write one JSON file per policy item inside each folder (e.g., `SettingsCatalog/My_Policy_4a2b3c4d.json`). Azure Blob Storage uses a single blob per content type instead.
