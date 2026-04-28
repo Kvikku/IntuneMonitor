@@ -17,6 +17,9 @@ public class AppConfiguration
     /// <summary>Audit log settings.</summary>
     public AuditLogConfig AuditLog { get; set; } = new();
 
+    /// <summary>Entra app/enterprise app monitoring settings.</summary>
+    public EntraMonitorConfig EntraMonitor { get; set; } = new();
+
     /// <summary>List of content types to process. Defaults to all when empty.</summary>
     public List<string> ContentTypes { get; set; } = new();
 
@@ -191,6 +194,18 @@ public class AuditLogConfig
     /// When true, automatically opens the HTML audit report in the default browser after generation.
     /// </summary>
     public bool OpenHtmlReport { get; set; } = true;
+}
+
+/// <summary>
+/// Configuration for Entra app registration and enterprise application monitoring.
+/// </summary>
+public class EntraMonitorConfig
+{
+    /// <summary>Local folder path for storing Entra snapshots.</summary>
+    public string SnapshotPath { get; set; } = "entra-snapshots";
+
+    /// <summary>Number of days of audit logs to include in the report (1–30).</summary>
+    public int Days { get; set; } = 1;
 }
 
 /// <summary>

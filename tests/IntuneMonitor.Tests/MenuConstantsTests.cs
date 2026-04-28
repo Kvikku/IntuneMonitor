@@ -10,7 +10,7 @@ public class MenuConstantsTests
     [Fact]
     public void MainMenuChoices_ContainsAllExpectedOptions()
     {
-        Assert.Equal(11, MenuConstants.MainMenuChoices.Length);
+        Assert.Equal(12, MenuConstants.MainMenuChoices.Length);
     }
 
     [Fact]
@@ -59,6 +59,12 @@ public class MenuConstantsTests
     public void MainMenuChoices_IncludesReviewAuditLogs()
     {
         Assert.Contains(MenuConstants.ReviewAuditLogs, MenuConstants.MainMenuChoices);
+    }
+
+    [Fact]
+    public void MainMenuChoices_IncludesEntraAppMonitor()
+    {
+        Assert.Contains(MenuConstants.EntraAppMonitor, MenuConstants.MainMenuChoices);
     }
 
     [Fact]

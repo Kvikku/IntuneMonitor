@@ -16,7 +16,7 @@ Welcome to the IntuneMonitor documentation. These guides cover everything from f
 | [Git Storage](git-storage.md) | Version-controlled backups with auto-commit and push |
 | [Monitoring & Scheduling](monitoring.md) | Drift detection, scheduling, severity filtering |
 | [CI/CD Integration](cicd.md) | GitHub Actions, Azure DevOps, Azure Automation examples |
-| [GitLab CI/CD](gitlab-cicd.md) | GitLab pipeline setup — Entra app, certificates, schedules |
+| [GitLab CI/CD](gitlab-cicd.md) | GitLab pipeline — export, sync, drift detection, audit logs, Teams alerts |
 | [Architecture](architecture.md) | Project structure, design decisions, extensibility |
 | [Contributing](contributing.md) | How to contribute — setup, conventions, PR workflow |
 | [Troubleshooting](troubleshooting.md) | Common issues and solutions |

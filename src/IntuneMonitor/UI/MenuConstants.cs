@@ -15,6 +15,7 @@ internal static class MenuConstants
     public const string AnalyzeDependencies = "Analyze dependencies";
     public const string ValidateBackups = "Validate backups";
     public const string ReviewAuditLogs = "Review audit logs";
+    public const string EntraAppMonitor = "Entra app monitor";
     public const string ListContentTypes = "List content types";
     public const string SettingsOverview = "Settings overview";
     public const string Exit = "Exit";
@@ -30,6 +31,7 @@ internal static class MenuConstants
         AnalyzeDependencies,
         ValidateBackups,
         ReviewAuditLogs,
+        EntraAppMonitor,
         ListContentTypes,
         SettingsOverview,
         Exit

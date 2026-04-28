@@ -21,19 +21,20 @@ Target: **net8.0** · Tests: **xUnit 2.5.3** · UI: **Spectre.Console 0.49.1**
 
 ```
 src/IntuneMonitor/
-├── Authentication/   # CredentialFactory – client secret & certificate auth
-├── Commands/         # ExportCommand, ImportCommand, MonitorCommand, AuditLogCommand
-├── Comparison/       # PolicyComparer – deep JSON diff engine
+├── Authentication/   # CredentialFactory – client secret, certificate & device code auth
+├── Commands/         # ExportCommand, ImportCommand, MonitorCommand, AuditLogCommand, DiffCommand, RollbackCommand, DependencyCommand, EntraMonitorCommand + CommandBuilder partials, GlobalOptions, CliHelpers
+├── Comparison/       # PolicyComparer, FieldComparer, AssignmentComparer, ChangeBuilder, EntraSnapshotComparer – deep JSON diff engine
 ├── Config/           # Strongly-typed configuration POCOs
-├── Graph/            # IntuneExporter, IntuneImporter, AuditLogFetcher – Graph API clients
-├── Models/           # IntuneItem, BackupDocument, ChangeReport, PolicyChange, AuditModels
-├── Reporting/        # HtmlReportGenerator, HtmlExportReportGenerator, HtmlAuditReportGenerator, HtmlTheme, ReportPath
-├── Storage/          # IBackupStorage + LocalFile/Git implementations
-├── UI/               # ConsoleUI (Spectre.Console helpers) + InteractiveMenu
+├── Graph/            # IntuneExporter, IntuneImporter, AuditLogFetcher, EntraExporter, DirectoryAuditFetcher, GraphClientFactory, GraphRetryHandler, GraphSubscriptionManager, JsonDefaults, JsonElementHelpers
+├── Models/           # IntuneItem, BackupDocument, ChangeReport, PolicyChange, AuditModels, EntraAppModels, ImportResult, ContentTypeResolver, IntuneContentTypes
+├── Notifications/    # INotificationSender + TeamsWebhookSender, SlackWebhookSender, EmailNotificationSender, NotificationService, NotificationFactory
+├── Reporting/        # HTML (HtmlReportGenerator, HtmlExportReportGenerator, HtmlAuditReportGenerator, HtmlEntraReportGenerator, HtmlReportHelpers, HtmlTheme), CSV (CsvReportGenerator), Markdown (MarkdownReportGenerator, MarkdownAuditReportGenerator, MarkdownEntraReportGenerator), ReportWriter, ReportPath
+├── Storage/          # IBackupStorage + LocalFileStorage, GitStorage, AzureBlobStorage, BackupStorageFactory, BackupValidator, BackupFileHelpers, EntraSnapshotStorage
+├── UI/               # ConsoleUI (Spectre.Console helpers) + InteractiveMenu + MenuConstants
 └── Program.cs        # Entry point – interactive menu (no args) or CLI routing (with args)
 
 tests/IntuneMonitor.Tests/
-└── PolicyComparerTests.cs
+└── 35+ test files (PolicyComparer, Graph clients, commands, storage, notifications, reporting, Entra monitoring, etc.)
 
 docs/                 # User-facing documentation (see docs/README.md for index)
 ```
@@ -112,19 +113,21 @@ _logger.LogError(ex, "Failed to import '{ItemName}'", itemName);
 
 ### Authentication
 
-Two methods via `CredentialFactory`:
+Three methods via `CredentialFactory`:
 
 1. **Client secret** → `ClientSecretCredential`
 2. **Certificate** (PFX/PEM file or Windows cert-store thumbprint) → `ClientCertificateCredential`
+3. **Device Code Flow** → `DeviceCodeCredential` (interactive browser prompt)
 
 Uses `Azure.Identity` — **not** the Microsoft Graph SDK.
 
 ### Storage
 
-`IBackupStorage` interface with two implementations:
+`IBackupStorage` interface with three implementations:
 
 - **LocalFileStorage**: Timestamp-based run folders, one JSON file per policy.
 - **GitStorage**: Same folder layout inside a Git repo with auto-commit/push support.
+- **AzureBlobStorage**: Uploads JSON to Azure Blob Storage (supports DefaultAzureCredential or SAS token).
 
 Created via `BackupStorageFactory.Create()`.
 
@@ -166,16 +169,27 @@ Built with `System.CommandLine 2.0.0-beta4.22272.1`. Commands:
 | `rollback` | Restore a specific policy to a previous backup version |
 | `validate` | Validate backup files for integrity and consistency |
 | `dependency` | Analyze policy dependencies and references |
-| `list-types` | Display the 20 supported Intune content types |
+| `list-types` | Display the 21 supported Intune content types |
+| `entra-monitor` | Monitor Entra app registrations and enterprise apps for changes |
 
 Global options (tenant, client, auth, backup path, verbosity) are defined in `Program.cs` and shared across commands.
 
 ## Testing
 
-- Framework: **xUnit** with `Microsoft.NET.Test.SDK`.
-- Test helpers: `MakeItem()`, `MakeBackup()` for constructing test data.
+- Framework: **xUnit** with `Microsoft.NET.Test.SDK` (31 test files).
+- Test helpers: `MakeItem()`, `MakeBackup()` for constructing test data; `GraphTestHelpers` for creating fake `GraphClientFactory` instances; `MockHttpHandler` for stubbing HTTP responses.
 - Use raw JSON string literals for policy data in tests.
 - Assertions: prefer `Assert.Single()`, `Assert.Contains()`, `Assert.Empty()`, `Assert.Equal()`.
+- Tests cover: diff engine, Graph API clients, commands, storage backends, notifications, configuration, reporting, and UI constants.
+
+### Notifications
+
+Drift alerts are sent via `INotificationSender` implementations:
+
+- **`TeamsWebhookSender`** / **`SlackWebhookSender`** — extend `WebhookNotificationSender` base class, POST JSON to webhook URLs.
+- **`EmailNotificationSender`** — sends HTML email via SMTP.
+
+`NotificationFactory` creates configured senders from `AppConfiguration.Notifications`. `NotificationService` dispatches to all senders (failures don't block others). `MonitorCommand` invokes notifications after drift detection.
 
 ## Dependencies
 
@@ -183,6 +197,7 @@ Global options (tenant, client, auth, backup path, verbosity) are defined in `Pr
 |---|---|
 | `Azure.Identity` | Entra ID authentication |
 | `Microsoft.Extensions.Configuration.*` | Config loading (JSON + env vars) |
+| `Microsoft.Extensions.Http` | `IHttpClientFactory` for Graph API calls |
 | `Microsoft.Extensions.Logging.*` | Structured logging (console provider) |
 | `Spectre.Console` | Rich terminal UI (tables, spinners, prompts, trees) |
 | `System.CommandLine` | CLI parsing |

@@ -107,7 +107,7 @@ See [Monitoring & Scheduling](monitoring.md) for details.
 |---|---|---|
 | `ContentTypes` | List of content types to process | All types |
 
-When the list is empty (default), all 20 content types are processed. Specify a subset to limit scope:
+When the list is empty (default), all 21 content types are processed. Specify a subset to limit scope:
 
 ```json
 {

@@ -4,17 +4,20 @@ This guide explains how IntuneMonitor runs as an automated pipeline in GitLab, i
 
 ## Overview
 
-The pipeline runs on a schedule (every 6 hours) and performs three stages:
+The pipeline runs on a schedule (every 6 hours) and performs six stages:
 
 ```
-build → export → monitor
+build → export → sync → monitor → audit → notify
 ```
 
 | Stage | What it does |
 |---|---|
 | **build** | Compiles the project and publishes a release binary as a pipeline artifact |
 | **export** | Authenticates to Microsoft Graph, downloads all Intune policies, and commits the backup to the repo |
+| **sync** | Pushes the latest backup to an external configuration repo (see [Configuration Repo Sync](#configuration-repo-sync)) |
 | **monitor** | Compares the live Intune state against the last backup and produces an HTML drift report |
+| **audit** | Fetches Intune audit log events and generates an HTML audit report |
+| **notify** | Sends an Adaptive Card summary to Microsoft Teams with report links |
 
 The pipeline is defined in `.gitlab-ci.yml` in the repo root.
 
@@ -105,7 +108,9 @@ Go to your GitLab project → **Settings** → **CI/CD** → **Variables** and a
 | `CLIENT_ID` | App registration application (client) ID | ✅ | ✅ |
 | `CERTIFICATE_PFX_BASE64` | Base64-encoded PFX file (from the step above) | ✅ | ✅ |
 | `CERTIFICATE_PASSWORD` | Password used when exporting the PFX | ✅ | ✅ |
-| `PUSH_TOKEN` | GitLab access token with `write_repository` scope | ✅ | ✅ |
+| `PUSH_TOKEN` | GitLab access token with `write_repository` scope (for this repo) | ✅ | ✅ |
+| `INTUNE_CONFIG_PUSH_TOKEN` | Project access token on the target configuration repo with `write_repository` scope (see [Configuration Repo Sync](#configuration-repo-sync)) | ✅ | ✅ |
+| `TEAMS_WEBHOOK_URL` | Microsoft Teams incoming webhook URL for drift/audit notifications | ✅ | ✅ |
 
 ### Creating the push token
 
@@ -156,6 +161,57 @@ The backup is stored in the `intune-backup/` directory at the repo root.
 2. Compares the live Intune state against the last backup
 3. Generates an HTML drift report saved as a pipeline artifact
 4. The report is available for download from the pipeline for 30 days
+
+### Audit stage
+
+1. Decodes the certificate (same as export)
+2. Fetches audit log events from Microsoft Graph for the last day
+3. Generates an HTML audit report saved as a pipeline artifact
+
+### Notify stage
+
+1. Parses the drift and audit HTML reports for summary metrics
+2. Sends an Adaptive Card to a Teams channel via `TEAMS_WEBHOOK_URL`
+3. Includes change counts, top actors, and direct-download links to the HTML reports
+
+---
+
+## Configuration Repo Sync
+
+The `sync` stage automatically pushes the latest Intune backup to a separate GitLab repository, keeping a single source-of-truth for the current Intune configuration.
+
+### How it works
+
+After the export job completes, the `sync-config-repo` job:
+
+1. Receives the `intune-backup/` directory as an artifact from the export job
+2. Clones the target configuration repository
+3. Copies the contents of the **latest** backup folder into `exports/` (flattened — no timestamp subfolder)
+4. Commits and pushes if there are any changes
+
+The target repo always contains the **current** Intune state — previous versions are tracked via Git history.
+
+### Setup
+
+1. **Create a Project Access Token** on the target repository:
+   - Go to the target repo → **Settings** → **Access Tokens**
+   - **Name:** e.g. `IntuneMonitorWrite`
+   - **Role:** Maintainer (must match or exceed the branch protection level)
+   - **Scopes:** `write_repository`
+2. **Add the token** as a CI/CD variable in the IntuneMonitor project:
+   - Variable name: `INTUNE_CONFIG_PUSH_TOKEN`
+   - **Protected:** ✅ **Masked:** ✅
+3. **Branch protection:** ensure the token's role is allowed to push to the target branch (default: `main`). If the target branch has code owner approval enabled, the token must have **Maintainer** role.
+
+### Customizing the target
+
+The job uses three variables that can be overridden in the `.gitlab-ci.yml`:
+
+| Variable | Default | Description |
+|---|---|---|
+| `CONFIG_REPO_URL` | *(set in pipeline)* | HTTPS clone URL of the target repo (with token) |
+| `CONFIG_BRANCH` | `main` | Branch to push to |
+| `CONFIG_TARGET_DIR` | `exports` | Directory in the target repo for the backup files |
 
 ---
 
