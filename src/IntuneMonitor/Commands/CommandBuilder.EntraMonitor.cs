@@ -12,12 +12,12 @@ internal static partial class CommandBuilder
         var command = new Command("entra-monitor",
             "Monitor Entra app registrations and enterprise applications for owner and permission changes.");
 
-        var daysOption = new Option<int>(
-            "--days", () => 1, "Number of days of audit logs to include (1–30).");
+        var daysOption = new Option<int?>(
+            "--days", "Number of days of audit logs to include (1–30).");
         daysOption.AddValidator(result =>
         {
             var value = result.GetValueForOption(daysOption);
-            if (value < 1 || value > 30)
+            if (value.HasValue && (value.Value < 1 || value.Value > 30))
                 result.ErrorMessage = "--days must be between 1 and 30.";
         });
 
@@ -44,17 +44,17 @@ internal static partial class CommandBuilder
             var logLevel = context.ParseResult.GetValueForOption(options.Verbosity);
             using var loggerFactory = CliHelpers.CreateLoggerFactory(logLevel);
 
-            var days = context.ParseResult.GetValueForOption(daysOption);
+            var daysOverride = context.ParseResult.GetValueForOption(daysOption);
             var snapshotPath = context.ParseResult.GetValueForOption(snapshotPathOption);
             var htmlPath = context.ParseResult.GetValueForOption(htmlReportOption);
             var mdPath = context.ParseResult.GetValueForOption(mdReportOption);
             var jsonPath = context.ParseResult.GetValueForOption(jsonReportOption);
 
-            if (days > 0)
-                appConfig.EntraMonitor.Days = days;
+            if (daysOverride.HasValue)
+                appConfig.EntraMonitor.Days = daysOverride.Value;
 
             var cmd = new EntraMonitorCommand(appConfig, httpClientFactory, loggerFactory);
-            await cmd.RunAsync(days, snapshotPath, htmlPath, jsonPath, mdPath);
+            await cmd.RunAsync(appConfig.EntraMonitor.Days, snapshotPath, htmlPath, jsonPath, mdPath);
         });
     }
 }

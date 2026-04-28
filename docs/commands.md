@@ -223,7 +223,7 @@ Monitors Entra app registrations and enterprise applications for changes. Combin
 Tracks: owner additions/removals, permission changes (`requiredResourceAccess`, `appRoleAssignments`, `oauth2PermissionGrants`), app additions/removals, and 12 types of directory audit events.
 
 ```bash
-# Run with defaults (1 day of audit logs, HTML report)
+# Run with defaults (1 day of audit logs)
 dotnet run -- entra-monitor
 
 # Last 7 days, custom snapshot path, all report formats

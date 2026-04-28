@@ -45,14 +45,14 @@ public static class HtmlEntraReportGenerator
                     {
                         "Added" => "added",
                         "Removed" => "removed",
-                        "OwnerAdded" or "OwnerRemoved" => "removed",
+                        "OwnerAdded" or "OwnerRemoved" => "modified",
                         "PermissionChanged" => "modified",
                         _ => ""
                     };
                     sb.AppendLine($"<tr class=\"{cssClass}\">");
                     sb.AppendLine($"<td>{HtmlReportHelpers.Encode(change.Category)}</td>");
                     sb.AppendLine($"<td class=\"policy-name\">{HtmlReportHelpers.Encode(change.AppName)}</td>");
-                    sb.AppendLine($"<td><span class=\"badge {cssClass}\">{HtmlReportHelpers.Encode(change.ChangeType)}</span></td>");
+                    sb.AppendLine($"<td><span class=\"change-tag {cssClass}\">{HtmlReportHelpers.Encode(change.ChangeType)}</span></td>");
                     sb.AppendLine($"<td>{HtmlReportHelpers.Encode(change.Details)}</td>");
                     sb.AppendLine("</tr>");
                 }
@@ -95,8 +95,7 @@ public static class HtmlEntraReportGenerator
             }
         }
 
-        sb.AppendLine(HtmlTheme.GetScript());
-        sb.AppendLine("</body></html>");
+        HtmlReportHelpers.AppendDocumentFoot(sb);
         return sb.ToString();
     }
 

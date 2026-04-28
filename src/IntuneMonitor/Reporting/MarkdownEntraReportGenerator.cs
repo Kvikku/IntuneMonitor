@@ -45,7 +45,7 @@ public static class MarkdownEntraReportGenerator
             foreach (var change in report.SnapshotChanges)
             {
                 sb.AppendLine(CultureInfo.InvariantCulture,
-                    $"| {change.Category} | {change.AppName} | {change.ChangeType} | {change.Details} |");
+                    $"| {EscapePipe(change.Category)} | {EscapePipe(change.AppName)} | {EscapePipe(change.ChangeType)} | {EscapePipe(change.Details)} |");
             }
             sb.AppendLine();
         }
@@ -59,7 +59,7 @@ public static class MarkdownEntraReportGenerator
             sb.AppendLine("| --- | --- |");
             foreach (var (activity, count) in report.AuditReport.EventsByActivity.OrderByDescending(kv => kv.Value))
             {
-                sb.AppendLine(CultureInfo.InvariantCulture, $"| {activity} | {count} |");
+                sb.AppendLine(CultureInfo.InvariantCulture, $"| {EscapePipe(activity)} | {count} |");
             }
             sb.AppendLine();
         }
@@ -73,7 +73,7 @@ public static class MarkdownEntraReportGenerator
             sb.AppendLine("| --- | --- |");
             foreach (var (actor, count) in report.AuditReport.EventsByActor.OrderByDescending(kv => kv.Value))
             {
-                sb.AppendLine(CultureInfo.InvariantCulture, $"| {actor} | {count} |");
+                sb.AppendLine(CultureInfo.InvariantCulture, $"| {EscapePipe(actor)} | {count} |");
             }
             sb.AppendLine();
         }
@@ -88,4 +88,7 @@ public static class MarkdownEntraReportGenerator
         if (!string.IsNullOrEmpty(dir)) Directory.CreateDirectory(dir);
         await File.WriteAllTextAsync(path, md, cancellationToken);
     }
+
+    private static string EscapePipe(string? value) =>
+        (value ?? string.Empty).Replace("|", "\\|").Replace("\n", " ").Replace("\r", "");
 }

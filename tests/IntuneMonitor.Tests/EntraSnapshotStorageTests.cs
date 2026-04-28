@@ -95,18 +95,18 @@ public class EntraSnapshotStorageTests : IDisposable
     {
         var storage = new EntraSnapshotStorage(_tempDir);
 
-        // Save first snapshot
-        var snapshot1 = new EntraSnapshot
-        {
-            AppRegistrations = new() { MakeItem("1", "First") },
-            EnterpriseApplications = new()
-        };
-        await storage.SaveSnapshotAsync(snapshot1);
+        // Create an older snapshot folder directly with a fixed past timestamp (no wall-clock delay needed)
+        var olderFolder = Path.Combine(_tempDir, "2020-01-01_000000");
+        Directory.CreateDirectory(olderFolder);
+        var oldItems = new List<EntraAppItem> { MakeItem("1", "First") };
+        await File.WriteAllTextAsync(
+            Path.Combine(olderFolder, "app-registrations.json"),
+            System.Text.Json.JsonSerializer.Serialize(oldItems));
+        await File.WriteAllTextAsync(
+            Path.Combine(olderFolder, "enterprise-applications.json"),
+            System.Text.Json.JsonSerializer.Serialize(new List<EntraAppItem>()));
 
-        // Small delay to ensure different timestamp
-        await Task.Delay(1100);
-
-        // Save second snapshot
+        // Save a second snapshot via the normal path (its timestamp will be after 2020)
         var snapshot2 = new EntraSnapshot
         {
             AppRegistrations = new() { MakeItem("2", "Second") },
