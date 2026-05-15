@@ -6,7 +6,7 @@ on:
   workflow_dispatch:        # allow manual runs
 
 permissions:
-  contents: read
+  contents: write           # needed to push timestamped history back to this repo
 
 jobs:
   export:
@@ -34,7 +34,9 @@ jobs:
       - name: Restore and build
         run: dotnet build src/IntuneMonitor -c Release --no-incremental
 
-      - name: Run export
+      # Writes current Intune state to EnergiMidt/IntuneConfiguration — overwrites on every run
+      # so the repo always reflects only the latest snapshot.
+      - name: Export to IntuneConfiguration
         env:
           INTUNEMONITOR_Authentication__TenantId: ${{ secrets.TENANT_ID }}
           INTUNEMONITOR_Authentication__ClientId: ${{ secrets.CLIENT_ID }}
@@ -42,6 +44,8 @@ jobs:
           INTUNEMONITOR_Authentication__CertificatePath: /tmp/m365exporter.pfx
           INTUNEMONITOR_Authentication__CertificatePassword: ${{ secrets.CERTIFICATE_PASSWORD }}
           INTUNEMONITOR_Backup__StorageType: Git
+          INTUNEMONITOR_Backup__Path: /tmp/intune-config-repo
+          INTUNEMONITOR_Backup__SubDirectory: config
           INTUNEMONITOR_Backup__GitRemoteUrl: https://github.com/EnergiMidt/IntuneConfiguration.git
           INTUNEMONITOR_Backup__GitBranch: main
           INTUNEMONITOR_Backup__GitToken: ${{ secrets.GIT_TOKEN }}
@@ -51,7 +55,31 @@ jobs:
           INTUNEMONITOR_Backup__AutoCommit: "true"
           INTUNEMONITOR_Backup__OpenHtmlExportReport: "false"
           INTUNEMONITOR_Monitor__OpenHtmlReport: "false"
-        run: dotnet run --project src/IntuneMonitor -c Release -- export
+        run: dotnet run --project src/IntuneMonitor -c Release --no-build -- export
+
+      # Writes a timestamped snapshot to history/ in this repo — every nightly run is preserved.
+      - name: Export history snapshot
+        env:
+          INTUNEMONITOR_Authentication__TenantId: ${{ secrets.TENANT_ID }}
+          INTUNEMONITOR_Authentication__ClientId: ${{ secrets.CLIENT_ID }}
+          INTUNEMONITOR_Authentication__Method: Certificate
+          INTUNEMONITOR_Authentication__CertificatePath: /tmp/m365exporter.pfx
+          INTUNEMONITOR_Authentication__CertificatePassword: ${{ secrets.CERTIFICATE_PASSWORD }}
+          INTUNEMONITOR_Backup__StorageType: LocalFile
+          INTUNEMONITOR_Backup__Path: ./history
+          INTUNEMONITOR_Backup__OpenHtmlExportReport: "false"
+          INTUNEMONITOR_Monitor__OpenHtmlReport: "false"
+        run: dotnet run --project src/IntuneMonitor -c Release --no-build -- export
+
+      - name: Commit history to M365Exporter
+        run: |
+          git config user.name "M365Exporter"
+          git config user.email "m365exporter@noreply.github.com"
+          git add history/
+          if ! git diff --cached --quiet; then
+            git commit -m "Intune export $(date -u '+%Y-%m-%d %H:%M UTC')"
+            git push
+          fi
 
       - name: Clean up certificate
         if: always()

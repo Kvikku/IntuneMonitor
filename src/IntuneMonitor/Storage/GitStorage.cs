@@ -149,17 +149,31 @@ public class GitStorage : IBackupStorage
 
             if (!string.IsNullOrWhiteSpace(_config.GitRemoteUrl))
             {
-                RunGitCommandSync($"remote add origin \"{_config.GitRemoteUrl}\"");
+                RunGitCommandSync($"remote add origin \"{BuildAuthenticatedUrl()}\"");
+                try
+                {
+                    // Sync with existing remote history — required in ephemeral CI environments
+                    // so that subsequent pushes are fast-forward rather than rejected.
+                    RunGitCommandSync($"fetch origin {_config.GitBranch}");
+                    RunGitCommandSync($"checkout -b {_config.GitBranch} origin/{_config.GitBranch}");
+                }
+                catch
+                {
+                    // Remote branch doesn't exist yet (first export) — start a fresh branch
+                    RunGitCommandSync($"checkout -b {_config.GitBranch}");
+                }
+            }
+            else
+            {
                 RunGitCommandSync($"checkout -b {_config.GitBranch}");
             }
         }
         else if (!string.IsNullOrWhiteSpace(_config.GitRemoteUrl))
         {
-            // Ensure the remote is set
             var remoteOutput = RunGitCommandSync("remote -v");
             if (!remoteOutput.Contains(_config.GitRemoteUrl, StringComparison.OrdinalIgnoreCase))
             {
-                RunGitCommandSync($"remote set-url origin \"{_config.GitRemoteUrl}\"");
+                RunGitCommandSync($"remote set-url origin \"{BuildAuthenticatedUrl()}\"");
             }
         }
     }
@@ -178,22 +192,27 @@ public class GitStorage : IBackupStorage
 
     private Dictionary<string, string> BuildGitEnvironment()
     {
-        var env = new Dictionary<string, string>();
-
-        if (!string.IsNullOrWhiteSpace(_config.GitUsername) && !string.IsNullOrWhiteSpace(_config.GitToken))
+        return new Dictionary<string, string>
         {
-            // Configure credential helper via environment
-            env["GIT_ASKPASS"] = "echo";
-            env["GIT_USERNAME"] = _config.GitUsername;
-            env["GIT_PASSWORD"] = _config.GitToken;
-        }
+            ["GIT_AUTHOR_NAME"] = _config.GitAuthorName,
+            ["GIT_AUTHOR_EMAIL"] = _config.GitAuthorEmail,
+            ["GIT_COMMITTER_NAME"] = _config.GitAuthorName,
+            ["GIT_COMMITTER_EMAIL"] = _config.GitAuthorEmail,
+        };
+    }
 
-        env["GIT_AUTHOR_NAME"] = _config.GitAuthorName;
-        env["GIT_AUTHOR_EMAIL"] = _config.GitAuthorEmail;
-        env["GIT_COMMITTER_NAME"] = _config.GitAuthorName;
-        env["GIT_COMMITTER_EMAIL"] = _config.GitAuthorEmail;
+    private string BuildAuthenticatedUrl()
+    {
+        var url = _config.GitRemoteUrl!;
+        if (string.IsNullOrWhiteSpace(_config.GitToken))
+            return url;
 
-        return env;
+        var uri = new Uri(url);
+        var user = string.IsNullOrWhiteSpace(_config.GitUsername)
+            ? "x-access-token"
+            : Uri.EscapeDataString(_config.GitUsername);
+        var token = Uri.EscapeDataString(_config.GitToken);
+        return $"{uri.Scheme}://{user}:{token}@{uri.Host}{uri.AbsolutePath}";
     }
 
     private string RunGit(string arguments, Dictionary<string, string> env)
